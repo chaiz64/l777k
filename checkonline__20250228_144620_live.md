@@ -1,0 +1,110 @@
+# Live Streams Report
+
+|   No. | Douyin ID       | Name                  | URL                                     | Status   | Checked_At          |
+|------:|:----------------|:----------------------|:----------------------------------------|:---------|:--------------------|
+|    15 | beta56940       | 换轮胎的贝塔          | https://live.douyin.com/beta56940       | Live     | 2025-02-28 14:46:20 |
+|    20 | cczplyyy        | 凌小野                | https://live.douyin.com/cczplyyy        | Live     | 2025-02-28 14:46:20 |
+|    33 | cuweikele       | 啊对对对可醋就是kk    | https://live.douyin.com/cuweikele       | Live     | 2025-02-28 14:46:20 |
+|    37 | danzaibb0918    | 蛋仔bb                | https://live.douyin.com/danzaibb0918    | Live     | 2025-02-28 14:46:20 |
+|    49 | dybnqji7zwgdd   | 小青琴                | https://live.douyin.com/dybnqji7zwgdd   | Live     | 2025-02-28 14:46:20 |
+|    98 | jozy11          | 金宝宝Jozy            | https://live.douyin.com/jozy11          | Live     | 2025-02-28 14:46:20 |
+|   101 | jxx4563         | 荆兮兮                | https://live.douyin.com/jxx4563         | Live     | 2025-02-28 14:46:20 |
+|   106 | kekou5211       | 只敢怒一下            | https://live.douyin.com/kekou5211       | Live     | 2025-02-28 14:46:20 |
+|   109 | klola           | 克罗拉                | https://live.douyin.com/klola           | Live     | 2025-02-28 14:46:20 |
+|   111 | kyin_7          | 发财美洋洋🐰          | https://live.douyin.com/kyin_7          | Live     | 2025-02-28 14:46:20 |
+|   139 | lx720000        | Miller_米乐🦢(拉丁舞) | https://live.douyin.com/lx720000        | Live     | 2025-02-28 14:46:20 |
+|   142 | lyx001121       | 岚玥                  | https://live.douyin.com/lyx001121       | Live     | 2025-02-28 14:46:20 |
+|   151 | momo258         | 跳舞的小沫沫🦋        | https://live.douyin.com/momo258         | Live     | 2025-02-28 14:46:20 |
+|   160 | niko02          | 金亨利                | https://live.douyin.com/niko02          | Live     | 2025-02-28 14:46:20 |
+|   176 | qianyu77hao     | 芊雨_⁹²⁷⁷✨           | https://live.douyin.com/qianyu77hao     | Live     | 2025-02-28 14:46:20 |
+|   185 | qi7850.         | ✨小拾柒              | https://live.douyin.com/qi7850.         | Live     | 2025-02-28 14:46:20 |
+|   188 | qzygonec3       | 呆瓜小匪🍉            | https://live.douyin.com/qzygonec3       | Live     | 2025-02-28 14:46:20 |
+|   208 | suan0829        | 向雅萱                | https://live.douyin.com/suan0829        | Live     | 2025-02-28 14:46:20 |
+|   218 | tiantianer1019. | 古筝钿甜🍒            | https://live.douyin.com/tiantianer1019. | Live     | 2025-02-28 14:46:20 |
+|   225 | ttixxz          | 4u                    | https://live.douyin.com/ttixxz          | Live     | 2025-02-28 14:46:20 |
+|   231 | uu1311          | Umi乔恩               | https://live.douyin.com/uu1311          | Live     | 2025-02-28 14:46:20 |
+|   254 | ww11193562      | 温酒💃                | https://live.douyin.com/ww11193562      | Live     | 2025-02-28 14:46:20 |
+|   278 | xiaoqiguzheng   | 小奇🌟古筝            | https://live.douyin.com/xiaoqiguzheng   | Live     | 2025-02-28 14:46:20 |
+|   291 | xixi520music    | 提琴甜心🍓            | https://live.douyin.com/xixi520music    | Live     | 2025-02-28 14:46:20 |
+|   297 | xukeying0919    | 许可莹                | https://live.douyin.com/xukeying0919    | Live     | 2025-02-28 14:46:20 |
+|   325 | yimiao0618      | 一妙                  | https://live.douyin.com/yimiao0618      | Live     | 2025-02-28 14:46:20 |
+|   332 | yiyi94182199    | 11🫧                  | https://live.douyin.com/yiyi94182199    | Live     | 2025-02-28 14:46:20 |
+|   343 | yxxy989         | 小杨不吃香菜🐑        | https://live.douyin.com/yxxy989         | Live     | 2025-02-28 14:46:20 |
+|   346 | yy1717171711    | 霸道王                | https://live.douyin.com/yy1717171711    | Live     | 2025-02-28 14:46:20 |
+|   362 | zxr0010302      | 柚子老师🍐            | https://live.douyin.com/zxr0010302      | Live     | 2025-02-28 14:46:20 |
+|   366 | zz3344xm        | 🫧小小小仙女🐰        | https://live.douyin.com/zz3344xm        | Live     | 2025-02-28 14:46:20 |
+|   377 | Angelina0910    | 小安猪                | https://live.douyin.com/Angelina0910    | Live     | 2025-02-28 14:46:20 |
+|   386 | ABC339975       | 🎙️夏热热🌻            | https://live.douyin.com/ABC339975       | Live     | 2025-02-28 14:46:20 |
+|   463 | JIA55_33        | 珈心饼干              | https://live.douyin.com/JIA55_33        | Live     | 2025-02-28 14:46:20 |
+|   496 | Maomaoxy001     | 法拉利的法            | https://live.douyin.com/Maomaoxy001     | Live     | 2025-02-28 14:46:20 |
+|   501 | Mibabe_         | 小米粒                | https://live.douyin.com/Mibabe_         | Live     | 2025-02-28 14:46:20 |
+|   503 | Miyasz          | 姜妍妍🧨              | https://live.douyin.com/Miyasz          | Live     | 2025-02-28 14:46:20 |
+|   505 | Mm_3189         | 烦烦☀️                | https://live.douyin.com/Mm_3189         | Live     | 2025-02-28 14:46:20 |
+|   509 | MM20000128      | 柠檬CC🔥🔥🔥          | https://live.douyin.com/MM20000128      | Live     | 2025-02-28 14:46:20 |
+|   510 | MYuan_0122      | 刘梦媛☔️              | https://live.douyin.com/MYuan_0122      | Live     | 2025-02-28 14:46:20 |
+|   518 | NN5775493       | 金念                  | https://live.douyin.com/NN5775493       | Live     | 2025-02-28 14:46:20 |
+|   529 | QingHuan831     | 清欢(须尽欢)          | https://live.douyin.com/QingHuan831     | Live     | 2025-02-28 14:46:20 |
+|   562 | Tianmao0301     | 甜猫🐱(3_1号🎂)       | https://live.douyin.com/Tianmao0301     | Live     | 2025-02-28 14:46:20 |
+|   575 | WeiLa250        | 麻辣红萝卜            | https://live.douyin.com/WeiLa250        | Live     | 2025-02-28 14:46:20 |
+|   578 | Wnr_3399.       | 维妮儿Dance👣         | https://live.douyin.com/Wnr_3399.       | Live     | 2025-02-28 14:46:20 |
+|   579 | Wtccc666        | 文婷🦄️                | https://live.douyin.com/Wtccc666        | Live     | 2025-02-28 14:46:20 |
+|   586 | WRainT          | 温雨彤                | https://live.douyin.com/WRainT          | Live     | 2025-02-28 14:46:20 |
+|   595 | Xiaomm123.      | 敏敏mm                | https://live.douyin.com/Xiaomm123.      | Live     | 2025-02-28 14:46:20 |
+|   596 | Xiaosisi123     | 小思思💗              | https://live.douyin.com/Xiaosisi123     | Live     | 2025-02-28 14:46:20 |
+|   604 | Xxinx999        | 甜欣儿                | https://live.douyin.com/Xxinx999        | Live     | 2025-02-28 14:46:20 |
+|   610 | XYXY_xyxy_520   | 月上小玉兔🌙          | https://live.douyin.com/XYXY_xyxy_520   | Live     | 2025-02-28 14:46:20 |
+|   648 | Z9993211        | 桃桃🍑                | https://live.douyin.com/Z9993211        | Live     | 2025-02-28 14:46:20 |
+|   651 | 010926Liao      | 别叫我廖廖            | https://live.douyin.com/010926Liao      | Live     | 2025-02-28 14:46:20 |
+|   656 | 06080720_       | 邱秋🦊                | https://live.douyin.com/06080720_       | Live     | 2025-02-28 14:46:20 |
+|   679 | 1237337077      | DJ_Lee酱              | https://live.douyin.com/1237337077      | Live     | 2025-02-28 14:46:20 |
+|   691 | 141823223       | 雨婷-拉丁舞💃         | https://live.douyin.com/141823223       | Live     | 2025-02-28 14:46:20 |
+|   692 | 142299222       | 杨铄⁶²²               | https://live.douyin.com/142299222       | Live     | 2025-02-28 14:46:20 |
+|   711 | 1806558348      | 格格℘                 | https://live.douyin.com/1806558348      | Live     | 2025-02-28 14:46:20 |
+|   726 | 2003968859      | 西西🐰                | https://live.douyin.com/2003968859      | Live     | 2025-02-28 14:46:20 |
+|   753 | 22187557033     | 姜南🍁                | https://live.douyin.com/22187557033     | Live     | 2025-02-28 14:46:20 |
+|   762 | 23149623222     | 陈圆圆                | https://live.douyin.com/23149623222     | Live     | 2025-02-28 14:46:20 |
+|   764 | 23458355085     | 晓璇🐰ིྀ                | https://live.douyin.com/23458355085     | Live     | 2025-02-28 14:46:20 |
+|   767 | 23984611131     | 不是阿茶              | https://live.douyin.com/23984611131     | Live     | 2025-02-28 14:46:20 |
+|   772 | 249249168.      | 小甜猪🐽💃            | https://live.douyin.com/249249168.      | Live     | 2025-02-28 14:46:20 |
+|   786 | 26350315597     | 虾仁不眨眼🍤          | https://live.douyin.com/26350315597     | Live     | 2025-02-28 14:46:20 |
+|   818 | 30374664313     | 翠芬儿                | https://live.douyin.com/30374664313     | Live     | 2025-02-28 14:46:20 |
+|   819 | 30627612487     | 小仙女辛辛腻          | https://live.douyin.com/30627612487     | Live     | 2025-02-28 14:46:20 |
+|   863 | 375279460       | 金鲤🌟                | https://live.douyin.com/375279460       | Live     | 2025-02-28 14:46:20 |
+|   865 | 3773755         | 莉莉^^                | https://live.douyin.com/3773755         | Live     | 2025-02-28 14:46:20 |
+|   878 | 39270075341     | 二十•                 | https://live.douyin.com/39270075341     | Live     | 2025-02-28 14:46:20 |
+|   882 | 3941797         | 小希🍀                | https://live.douyin.com/3941797         | Live     | 2025-02-28 14:46:20 |
+|   889 | 40450497419     | 莉雅                  | https://live.douyin.com/40450497419     | Live     | 2025-02-28 14:46:20 |
+|   893 | 41275895935     | 贝贝熊🐻(国舞版)      | https://live.douyin.com/41275895935     | Live     | 2025-02-28 14:46:20 |
+|   910 | 45008930789     | 小谭同学              | https://live.douyin.com/45008930789     | Live     | 2025-02-28 14:46:20 |
+|   915 | 45803058764     | 雪雷雷                | https://live.douyin.com/45803058764     | Live     | 2025-02-28 14:46:20 |
+|   954 | 51505773994     | 示示🎹                | https://live.douyin.com/51505773994     | Live     | 2025-02-28 14:46:20 |
+|   960 | 52312119728     | 清清🐰                | https://live.douyin.com/52312119728     | Live     | 2025-02-28 14:46:20 |
+|  1000 | 58510901539     | 鱼🐠                  | https://live.douyin.com/58510901539     | Live     | 2025-02-28 14:46:20 |
+|  1005 | 59320413134     | 12Show秀              | https://live.douyin.com/59320413134     | Live     | 2025-02-28 14:46:20 |
+|  1017 | 60587024910     | 蕊蕊(积分赛)          | https://live.douyin.com/60587024910     | Live     | 2025-02-28 14:46:20 |
+|  1033 | 63223744388     | 一只小皮猴🙊          | https://live.douyin.com/63223744388     | Live     | 2025-02-28 14:46:20 |
+|  1041 | 64453224739     | 李小宛                | https://live.douyin.com/64453224739     | Live     | 2025-02-28 14:46:20 |
+|  1045 | 65706992997     | 桃子                  | https://live.douyin.com/65706992997     | Live     | 2025-02-28 14:46:20 |
+|  1057 | 66581876526     | 苏晴🔮古筝            | https://live.douyin.com/66581876526     | Live     | 2025-02-28 14:46:20 |
+|  1062 | 67397339614     | 慧银(中国舞💃)        | https://live.douyin.com/67397339614     | Live     | 2025-02-28 14:46:20 |
+|  1070 | 68346770300     | 阿月🌙                | https://live.douyin.com/68346770300     | Live     | 2025-02-28 14:46:20 |
+|  1085 | 70134541975     | 古筝允儿🎊            | https://live.douyin.com/70134541975     | Live     | 2025-02-28 14:46:20 |
+|  1086 | 70295810336     | 就是嘉忆呀_✨         | https://live.douyin.com/70295810336     | Live     | 2025-02-28 14:46:20 |
+|  1092 | 70853996927     | 闻君🐏🎉              | https://live.douyin.com/70853996927     | Live     | 2025-02-28 14:46:20 |
+|  1100 | 72234689274     | UU🐋                  | https://live.douyin.com/72234689274     | Live     | 2025-02-28 14:46:20 |
+|  1106 | 73127858066     | 晚萤🧚🏻                | https://live.douyin.com/73127858066     | Live     | 2025-02-28 14:46:20 |
+|  1134 | 77053936362     | 高静香🎹              | https://live.douyin.com/77053936362     | Live     | 2025-02-28 14:46:20 |
+|  1144 | 78386482879     | 乖乖大坏蛋            | https://live.douyin.com/78386482879     | Live     | 2025-02-28 14:46:20 |
+|  1146 | 78585379935     | 甜崽(2_27🎂版)        | https://live.douyin.com/78585379935     | Live     | 2025-02-28 14:46:20 |
+|  1158 | 805you          | 柚柚cc                | https://live.douyin.com/805you          | Live     | 2025-02-28 14:46:20 |
+|  1159 | 80506242144     | 小清稞🌾              | https://live.douyin.com/80506242144     | Live     | 2025-02-28 14:46:20 |
+|  1167 | 8181720         | 慧慧💃                | https://live.douyin.com/8181720         | Live     | 2025-02-28 14:46:20 |
+|  1205 | 88337584438     | 诺诺                  | https://live.douyin.com/88337584438     | Live     | 2025-02-28 14:46:20 |
+|  1241 | 94017030718     | 十一Iris              | https://live.douyin.com/94017030718     | Live     | 2025-02-28 14:46:20 |
+|  1242 | 94282481492     | 张哈哈☀️              | https://live.douyin.com/94282481492     | Live     | 2025-02-28 14:46:20 |
+|  1244 | 944946311       | 阿贞古筝(2_27🎂)      | https://live.douyin.com/944946311       | Live     | 2025-02-28 14:46:20 |
+|  1254 | 9628781YY       | 衣依U                 | https://live.douyin.com/9628781YY       | Live     | 2025-02-28 14:46:20 |
+|  1258 | 969291sss       | 油炸QQ糖              | https://live.douyin.com/969291sss       | Live     | 2025-02-28 14:46:20 |
+
+## Summary
+- Total live: 103
