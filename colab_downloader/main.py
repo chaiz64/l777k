@@ -4,8 +4,8 @@ from IPython.display import display, HTML, clear_output
 import google.colab.files
 import time
 import shutil # For checking if ffprobe is installed
-from .utils import format_duration, format_bytes, get_video_info
-from .ui import ColabDownloaderUI # Import the UI class
+from colab_downloader.utils import format_duration, format_bytes, get_video_info
+from colab_downloader.ui import ColabDownloaderUI # Import the UI class
 
 # --- Setup and Initialization ---
 # Path to your download folder
@@ -40,8 +40,8 @@ class ColabVideoDownloader:
         self.checkbox_file_map = {}
         self.current_filter_text = ""
         self.ffprobe_available = bool(shutil.which('ffprobe'))
-        self.cancel_batch_download_flag = False # New flag for cancellation
-        self.cancel_all_downloads_flag = False # New flag for cancelling all downloads
+        self.cancel_batch_download_flag = False # Flag for cancelling current batch
+        self.cancel_all_downloads_flag = False # New flag for cancelling all pending downloads
 
         # Initialize UI
         self.ui = ColabDownloaderUI(self.download_dir, self.download_limit_per_batch)
@@ -74,7 +74,8 @@ class ColabVideoDownloader:
         self.ui.dir_input.observe(self._on_dir_input_change, names='value')
         self.ui.download_url_button.on_click(self._on_download_url_click)
         self.ui.cancel_download_button.on_click(self._on_cancel_download_click)
-        self.ui.cancel_all_downloads_button.on_click(self._on_cancel_all_downloads_click) # New event handler
+        # New: Event handler for the "Cancel All Downloads" button
+        self.ui.cancel_all_downloads_button.on_click(self._on_cancel_all_downloads_click)
 
     def _on_dir_input_change(self, change):
         self.download_dir = change['new']
@@ -265,20 +266,22 @@ class ColabVideoDownloader:
             b.disabled = False
 
     def _on_cancel_download_click(self, b):
-        """Handles the cancel download button click."""
+        """Handles the cancel current batch download button click."""
         self.cancel_batch_download_flag = True
         self.ui.print_output("🛑 Batch download cancellation requested. Current download will finish, subsequent downloads will be skipped.")
 
     def _on_cancel_all_downloads_click(self, b):
         """Handles the cancel all downloads button click."""
         self.cancel_all_downloads_flag = True
-        self.cancel_batch_download_flag = True # Also set batch flag to stop current batch
+        self.cancel_batch_download_flag = True # Also set batch flag to stop current batch if any
         self.ui.print_output("❌ All pending downloads cancellation requested. No more downloads will be initiated.")
+
 
     def _on_download_batch_click(self, b):
         """Handles the batch download button click (skipping selected)."""
         b.disabled = True # Disable button during operation
         self.cancel_batch_download_flag = False # Reset flag for new batch
+        self.cancel_all_downloads_flag = False # Reset global cancellation flag
 
         files_to_download = []
         # Iterate through the current skip_checkboxes and use the map to get corresponding file_info
@@ -300,6 +303,8 @@ class ColabVideoDownloader:
     def _on_download_all_click(self, b):
         """Handles the 'Download All Displayed' button click."""
         b.disabled = True
+        self.cancel_batch_download_flag = False # Reset flag for new batch
+        self.cancel_all_downloads_flag = False # Reset global cancellation flag
 
         # Download all currently filtered files, ignoring skip checkboxes for this action
         # This means we need to re-evaluate filtered_files as _update_ui_display might have changed since last call
@@ -326,6 +331,7 @@ class ColabVideoDownloader:
 
         try:
             for i, file_info in enumerate(files_to_download_list):
+                # Check both cancellation flags
                 if self.cancel_batch_download_flag or self.cancel_all_downloads_flag:
                     self.ui.print_output("\n🛑 Batch download cancelled by user.")
                     # If cancel_all_downloads_flag is set, reset it for future operations
@@ -370,6 +376,8 @@ class ColabVideoDownloader:
         finally:
             button_widget.disabled = False # Re-enable the button that triggered this
             self.cancel_batch_download_flag = False # Reset for next batch
+            self.cancel_all_downloads_flag = False # Ensure this is reset after the process finishes or is cancelled
+
 
     def _display_download_history(self):
         """Displays the content of the downloaded links file."""

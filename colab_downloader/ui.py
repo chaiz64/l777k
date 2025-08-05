@@ -48,6 +48,7 @@ class ColabDownloaderUI:
             tooltip="Stop the current batch download process",
             layout=widgets.Layout(width='auto')
         )
+        # New: Cancel All Downloads Button
         self.cancel_all_downloads_button = widgets.Button(
             description="❌ Cancel All Downloads",
             button_style='danger',
@@ -79,6 +80,7 @@ class ColabDownloaderUI:
 
         dir_control_box = widgets.HBox([self.dir_input, self.refresh_button])
         filter_box = widgets.HBox([self.filter_input, self.clear_links_button])
+        # Updated: Include the new cancel all button in the URL download box
         url_download_box = widgets.HBox([self.url_input, self.download_url_button, self.cancel_download_button, self.cancel_all_downloads_button])
 
         return widgets.VBox([
