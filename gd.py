@@ -42,14 +42,14 @@ def install_ffmpeg():
             subprocess.run(['apt-get', 'update'], check=True, capture_output=True)
             subprocess.run(['apt-get', 'install', '-y', 'ffmpeg'], check=True, capture_output=True)
             logging.info("FFmpeg installed successfully.")
-        except subprocess.CalledCalledProcessError as e:
+        except subprocess.CalledProcessError as e:
             logging.error(f"Failed to install FFmpeg: {e.stderr.decode()}. Please install it manually.")
             raise RuntimeError("FFmpeg installation failed.")
 
 # Function to calculate MD5 checksum of a file
 def calculate_md5(file_path, chunk_size=8192):
     """
-    Calculates the MD5 checksum of a given file.
+    Calculates the MD5 checksum of the given file.
 
     Args:
         file_path (str): The path to the file.
@@ -68,11 +68,22 @@ def calculate_md5(file_path, chunk_size=8192):
         logging.error(f"Error calculating MD5 for {file_path}: {e}")
         return None
 
-# Mount Google Drive
+# Modified section: Check and mount Google Drive
 logging.info("Mounting Google Drive...")
 try:
     drive.mount('/content/drive')
     logging.info("Google Drive mounted successfully.")
+except AttributeError as e:
+    # This error typically occurs when not running in Google Colab
+    error_message = (
+        "Failed to mount Google Drive. This script is designed to run in a Google Colab environment. "
+        "The error 'NoneType' object has no attribute 'kernel' indicates that the necessary "
+        "Colab environment components are not available. Please run this script in a Colab notebook."
+    )
+    logging.error(error_message)
+    print(f"❌ {error_message}")
+    # Stop the script
+    raise RuntimeError("This script must be run in a Google Colab notebook.")
 except Exception as e:
     logging.error(f"Failed to mount Google Drive: {e}")
     raise
@@ -181,6 +192,7 @@ df = df_raw[df_raw['DurationSeconds'] >= MIN_DURATION_SECONDS].copy()
 
 if len(df_raw) > 0:
     logging.info(f"Found {len(df_raw)} video files in total. {len(df)} files meet the minimum duration requirement (>= {MIN_DURATION_SECONDS/60} minutes).")
+else:
     print("❌ No MP4/TS video files found in the source directory.") # Keep print for user visibility
 
 # Select files to copy
