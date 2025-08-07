@@ -1,18 +1,23 @@
-from google.colab import drive
 import os
 import shutil
 import subprocess
 from datetime import timedelta
 import pandas as pd
 import logging
-from tqdm.notebook import tqdm # Use tqdm.notebook for Google Colab
+from tqdm import tqdm # Use standard tqdm for local environment
 import hashlib # For checksum verification
 
 # --- Configuration ---
 # Source directory path where your videos are located
-SOURCE_DIR = '/content/DouyinLiveRecorder/downloads/抖音直播'
-# Target directory path in Google Drive where backups will be stored
-TARGET_DIR = '/content/drive/MyDrive/8888/ColabDL' # Can be modified as needed
+SOURCE_DIR = 'D:/DouyinLiveRecorder/downloads/抖音直播' # Example local path, adjust as needed
+# Target directory path for Google Drive mount point (e.g., a local folder where rclone mounts GDrive)
+# IMPORTANT: You must configure rclone and ensure this path is where your Google Drive is mounted.
+TARGET_DIR = 'D:/GoogleDriveMount/8888/ColabDL' # Example local mount point, adjust as needed
+# Rclone remote name for Google Drive (e.g., 'gdrive' if you configured it as such)
+RCLONE_REMOTE_NAME = 'gdrive'
+# Path within the Rclone remote to the target directory (e.g., '8888/ColabDL' if TARGET_DIR is a subfolder of your GDrive root)
+RCLONE_REMOTE_PATH = '8888/ColabDL'
+# --------------------
 
 # Advanced Configuration
 ENABLE_CHECKSUM_VERIFICATION = True # Set to True to verify file integrity after copying
@@ -29,22 +34,15 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Function to install FFmpeg if not present
 def install_ffmpeg():
     """
-    Checks if ffprobe is installed and installs FFmpeg if it's not found.
+    Checks if ffprobe is installed. If not, it advises the user to install FFmpeg manually.
     FFmpeg includes ffprobe, which is necessary for getting video durations.
     """
     try:
-        subprocess.run(['ffprobe', '-h'], check=True, capture_output=True)
+        subprocess.run(['ffprobe', '-h'], check=True, capture_output=True, shell=True)
         logging.info("FFmpeg (ffprobe) is already installed.")
     except (subprocess.CalledProcessError, FileNotFoundError):
-        logging.warning("FFmpeg (ffprobe) not found. Attempting to install FFmpeg...")
-        try:
-            # Update apt-get and install ffmpeg
-            subprocess.run(['apt-get', 'update'], check=True, capture_output=True)
-            subprocess.run(['apt-get', 'install', '-y', 'ffmpeg'], check=True, capture_output=True)
-            logging.info("FFmpeg installed successfully.")
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Failed to install FFmpeg: {e.stderr.decode()}. Please install it manually.")
-            raise RuntimeError("FFmpeg installation failed.")
+        logging.error("FFmpeg (ffprobe) not found. Please install FFmpeg manually from https://ffmpeg.org/download.html and ensure it's in your system's PATH.")
+        raise RuntimeError("FFmpeg not found. Please install it manually.")
 
 # Function to calculate MD5 checksum of a file
 def calculate_md5(file_path, chunk_size=8192):
@@ -68,28 +66,68 @@ def calculate_md5(file_path, chunk_size=8192):
         logging.error(f"Error calculating MD5 for {file_path}: {e}")
         return None
 
-# Modified section: Check and mount Google Drive
-logging.info("Mounting Google Drive...")
-try:
-    drive.mount('/content/drive')
-    logging.info("Google Drive mounted successfully.")
-except AttributeError as e:
-    # This error typically occurs when not running in Google Colab
-    error_message = (
-        "Failed to mount Google Drive. This script is designed to run in a Google Colab environment. "
-        "The error 'NoneType' object has no attribute 'kernel' indicates that the necessary "
-        "Colab environment components are not available. Please run this script in a Colab notebook."
-    )
-    logging.error(error_message)
-    print(f"❌ {error_message}")
-    # Stop the script
-    raise RuntimeError("This script must be run in a Google Colab notebook.")
-except Exception as e:
-    logging.error(f"Failed to mount Google Drive: {e}")
-    raise
+# Function to mount Google Drive using rclone
+def mount_google_drive_rclone(remote_name, remote_path, local_mount_point):
+    """
+    Mounts Google Drive using rclone.
 
+    Args:
+        remote_name (str): The name of the rclone remote configured for Google Drive.
+        remote_path (str): The path within the rclone remote to mount.
+        local_mount_point (str): The local directory where Google Drive will be mounted.
+    """
+    logging.info(f"Attempting to mount Google Drive using rclone: {remote_name}:{remote_path} to {local_mount_point}")
+    try:
+        # Ensure the local mount point exists
+        os.makedirs(local_mount_point, exist_ok=True)
+
+        # Check if rclone is installed
+        subprocess.run(['rclone', 'version'], check=True, capture_output=True, shell=True)
+
+        # Check if the mount point is already mounted
+        # This is a simplified check, a more robust solution might involve `rclone rc vfs/forget` or checking `mountvol` on Windows
+        if os.path.ismount(local_mount_point):
+            logging.info(f"'{local_mount_point}' is already mounted. Skipping rclone mount.")
+            return
+
+        # Command to mount Google Drive using rclone
+        # Using --vfs-cache-mode full for better performance and reliability
+        # --daemon to run in background (Windows specific)
+        # For Windows, you might need to run this command in a separate process or as an admin
+        # For simplicity, we'll just run it and expect it to work or fail.
+        # The user will need to ensure rclone is configured and accessible.
+        mount_cmd = [
+            'rclone', 'mount', f'{remote_name}:{remote_path}', local_mount_point,
+            '--vfs-cache-mode', 'full', '--allow-other', '--daemon' # --daemon for Windows
+        ]
+        logging.info(f"Executing rclone mount command: {' '.join(mount_cmd)}")
+        subprocess.run(mount_cmd, check=True, shell=True) # Use shell=True for Windows commands
+        logging.info("Google Drive mounted successfully using rclone.")
+    except FileNotFoundError:
+        logging.error("rclone not found. Please install rclone and ensure it's in your system's PATH. Download from https://rclone.org/downloads/")
+        raise RuntimeError("rclone not found.")
+    except subprocess.CalledProcessError as e:
+        logging.error(f"Failed to mount Google Drive with rclone: {e.stderr.decode()}")
+        print(f"❌ Failed to mount Google Drive with rclone. Error: {e.stderr.decode()}")
+        raise RuntimeError("rclone mount failed.")
+    except Exception as e:
+        logging.error(f"An unexpected error occurred during rclone mount: {e}")
+        raise
+
+# --- Main execution flow ---
 # Ensure FFmpeg is installed
 install_ffmpeg()
+
+# Mount Google Drive using rclone
+try:
+    mount_google_drive_rclone(RCLONE_REMOTE_NAME, RCLONE_REMOTE_PATH, TARGET_DIR)
+    logging.info("Google Drive mount process initiated. Please verify the mount point.")
+except RuntimeError as e:
+    logging.error(f"Script stopped due to mounting error: {e}")
+    print(f"❌ Script stopped: {e}")
+    exit(1) # Exit the script if mounting fails
+
+# Check if source directory exists
 
 # Check if source directory exists
 if not os.path.exists(SOURCE_DIR):
@@ -343,12 +381,9 @@ if ENABLE_CHECKSUM_VERIFICATION:
 print(f"⏩ Skipped (already exists in target): {skipped_count} files") # Keep print for user visibility
 print(f"❌ Failed to copy: {failed_count} files") # Keep print for user visibility
 
-# Unmount Google Drive (optional)
-logging.info("Unmounting Google Drive...")
-try:
-    drive.flush_and_unmount()
-    logging.info("Google Drive unmounted successfully.")
-except Exception as e:
-    logging.error(f"Failed to unmount Google Drive: {e}")
+# Unmount Google Drive (optional - for rclone, you might need to kill the rclone process or use `rclone rc vfs/forget`)
+# For simplicity, we won't automatically unmount here as rclone runs as a daemon.
+# You can manually unmount by finding the rclone process and killing it, or using `rclone rc vfs/forget` if you have rclone's RC server enabled.
+logging.info("Rclone mount runs as a daemon. Manual unmount may be required if you wish to stop it.")
 
 print("\n🎉 Operation complete!")
