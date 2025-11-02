@@ -1,0 +1,138 @@
+# Faster-Whisper-XXL Optimized for i9-9900K + RTX 2080 + 32GB RAM
+# Specialized configurations for different content types
+
+# Master configuration optimized for your hardware
+default: &default
+  model: "large-v2"
+  language: null
+  task: "transcribe"
+  device: "cuda"
+  compute_type: "float16"
+  threads: 16
+  batched: true
+  batch_size: 8
+  beam_size: 8
+  best_of: 5
+  temperature: [0.0, 0.2, 0.4]
+  compression_ratio_threshold: 2.0
+  logprob_threshold: -1.0
+  no_speech_threshold: 0.5
+  condition_on_previous_text: false
+  standard: true
+  sentence: true
+  vad_filter: true
+  vad_parameters:
+    threshold: 0.5
+    min_speech_duration_ms: 250
+    max_speech_duration_s: 8.0
+  vad_method: "silero_v3"
+  vad_speech_pad_ms: 300
+  chunk_length: 20
+  hallucination_silence_threshold: 1.0
+  word_timestamps: true
+  output_dir: "subtitles"
+  output_format: ["srt", "vtt", "txt"]
+  batch_recursive: true
+  check_files: true
+  print_progress: true
+  beep_off: true
+  prepend_punctuations: "\"'“¿([{-"
+  append_punctuations: "\"'.。,，!！?？:：”)]}、"
+
+# ซีรีย์ญี่ปุ่น (Japanese Drama) - ปรับสำหรับบทพูดธรรมชาติ
+japanese_drama:
+  <<: *default
+  model: "large-v3"
+  language: "ja"
+  standard_asia: true
+  beam_size: 10
+  best_of: 6
+  batch_size: 6
+  temperature: [0.0, 0.1, 0.3]
+  no_speech_threshold: 0.45
+  vad_speech_pad_ms: 400
+  chunk_length: 18
+  word_timestamps: true
+  compression_ratio_threshold: 1.8
+  prepend_punctuations: "「『（【"
+  append_punctuations: "」。』）】、！？"
+
+# ซีรีย์จีน (Chinese Drama) - ปรับสำหรับภาษาจีน
+chinese_drama:
+  <<: *default
+  model: "large-v3"
+  language: "zh"
+  standard_asia: true
+  beam_size: 12
+  best_of: 8
+  batch_size: 6
+  temperature: [0.0, 0.2]
+  no_speech_threshold: 0.4
+  vad_speech_pad_ms: 350
+  chunk_length: 16
+  word_timestamps: false
+  compression_ratio_threshold: 1.7
+  prepend_punctuations: "“‘《（【"
+  append_punctuations: "”’。》）】！？"
+
+# อะนิเมะ (Anime) - ปรับสำหรับเสียงตัวละครและเอฟเฟกต์
+japanese_anime:
+  <<: *default
+  model: "large-v3"
+  language: "ja"
+  standard_asia: true
+  beam_size: 8
+  best_of: 5
+  batch_size: 10
+  temperature: [0.0, 0.3, 0.6]
+  no_speech_threshold: 0.3
+  vad_speech_pad_ms: 250
+  chunk_length: 15
+  word_timestamps: true
+  compression_ratio_threshold: 2.2
+  prepend_punctuations: "「『（【～"
+  append_punctuations: "」。』）】、！？…♪"
+
+# หนังAV (Adult Video) - ปรับสำหรับเสียงรบกวนและเสียงเบา
+japanese_adult:
+  <<: *default
+  model: "large-v3"
+  language: "ja"
+  standard_asia: true
+  beam_size: 15
+  best_of: 10
+  batch_size: 4
+  temperature: [0.0, 0.1]
+  no_speech_threshold: 0.6
+  vad_speech_pad_ms: 500
+  vad_parameters:
+    threshold: 0.3
+    min_speech_duration_ms: 500
+    max_speech_duration_s: 6.0
+  chunk_length: 12
+  word_timestamps: true
+  compression_ratio_threshold: 1.5
+  prepend_punctuations: "「『（【"
+  append_punctuations: "」。』）】、！？…"
+
+# High Quality Mode - เมื่อต้องการความแม่นยำสูงสุด
+high_quality:
+  <<: *default
+  model: "large-v3"
+  batch_size: 4
+  beam_size: 12
+  best_of: 8
+  temperature: [0.0, 0.1, 0.2, 0.3]
+  chunk_length: 18
+  word_timestamps: true
+
+# Fast Mode - สำหรับการประมวลผลเร็ว
+fast_mode:
+  <<: *default
+  model: "medium"
+  batch_size: 16
+  beam_size: 3
+  best_of: 2
+  temperature: 0.0
+  word_timestamps: false
+  vad_filter: true
