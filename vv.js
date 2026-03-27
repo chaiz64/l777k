@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NotebookLM → Obsidian Export (V14 - Ultimate)
+// @name         NotebookLM → Obsidian Export (V15 - Ultra Clean)
 // @namespace    http://tampermonkey.net/
-// @version      14.0
-// @description  Full Review implementation. Fixes UI Chrome bleed, perfectly constructs YAML, and formats speakers.
+// @version      15.0
+// @description  Removes Chat UI, Timestamp bleed, and fixes Double Asterisks in dialogue.
 // @match        https://notebooklm.google.com/*
 // @grant        none
 // ==/UserScript==
@@ -32,7 +32,6 @@
     function isUIChrome(el) {
         if (!el || !el.getAttribute) return false;
         
-        // 1. Check computed style for hidden elements (avoids tooltips)
         if (window.getComputedStyle) {
             const style = window.getComputedStyle(el);
             if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return true;
@@ -42,8 +41,8 @@
         const aria = (el.getAttribute('aria-label') || '').toLowerCase();
         const className = (typeof el.className === 'string' ? el.className.toLowerCase() : '');
 
-        // 2. Strict blacklisting
-        if (['button', 'toolbar', 'navigation', 'menu', 'menuitem', 'dialog', 'tooltip', 'progressbar', 'presentation'].includes(role)) return true;
+        // Added 'tab' and 'tablist' to block "Sources", "Chat", "Studio" buttons
+        if (['button', 'toolbar', 'navigation', 'menu', 'menuitem', 'dialog', 'tooltip', 'progressbar', 'presentation', 'tab', 'tablist'].includes(role)) return true;
         if (aria.includes('emoji') || aria.includes('loading') || aria.includes('menu') || aria.includes('action')) return true;
         if (className.includes('button') || className.includes('tooltip') || className.includes('spinner') || className.includes('emoji') || className.includes('avatar')) return true;
 
@@ -53,9 +52,20 @@
     // ── 2. PRECISE DOM EXTRACTION ──────────────────────────────────────────
     function extractText(node) {
         if (node.nodeType === Node.TEXT_NODE) {
-            // Drop useless empty text nodes or floating UI texts
             const text = node.textContent;
-            if (text.trim() === 'Loading' || text.trim() === 'No emoji found') return "";
+            const t = text.trim();
+            
+            // Explicitly drop exact NotebookLM UI strings
+            const uiStrings = ['Loading', 'No emoji found', 'Sources', 'Chat', 'Studio', 'Notebook guide', 'Saved to notes', 'Copy to clipboard'];
+            if (uiStrings.includes(t)) return "";
+            
+            // Drop "1 source", "2 sources", etc.
+            if (/^\d+\s*sources?$/i.test(t)) return "";
+            
+            // Drop timestamps like "Today • 12:26 AM"
+            if (/^(?:Today|Yesterday)\s*•/i.test(t)) return "";
+            if (/^\d{1,2}:\d{2}\s*[AP]M$/.test(t)) return "";
+
             return text;
         }
         
@@ -70,7 +80,6 @@
 
         if (isBlock) text += "\n\n";
 
-        // Map HTML tags to Markdown
         if (tag === 'H1') text += "# ";
         else if (tag === 'H2') text += "## ";
         else if (tag === 'H3') text += "### ";
@@ -83,7 +92,6 @@
             text += extractText(child);
         }
 
-        // Close inline formatting
         if (tag === 'STRONG' || tag === 'B') text += "**";
         else if (tag === 'EM' || tag === 'I') text += "*";
 
@@ -92,35 +100,33 @@
         return text;
     }
 
-    // ── 3. SMART POST-PROCESSING (Targeting 'Untitled 8' Exactness) ────────
+    // ── 3. SMART POST-PROCESSING ───────────────────────────────────────────
     function postProcessMarkdown(text) {
-        // Fix weird dashboard dashes
         text = text.replace(/-{4,}/g, '---');
 
-        // Extract and format YAML Frontmatter keys
         const yamlKeys = ['channel:', 'title:', 'categories:', 'tags:', 'speaker:'];
         yamlKeys.forEach(key => {
             const regex = new RegExp(`(?<!\\n)\\s*(${key})`, 'gi');
             text = text.replace(regex, '\n$1');
         });
 
-        // Ensure YAML closes properly
         if (text.includes('---')) {
             text = text.replace(/(speaker:[^\n]*)\n*(?=[^\n-])/i, '$1\n---\n\n');
         }
-
-        // Format Speakers (e.g. "Host:", "Guest (Isaac):")
-        // Makes them bold and moves dialogue to next line
-        text = text.replace(/(?:\n|^|\s)\s*(\*?\*?(?:Host|Guest(?:\s*\([^)]+\))?|Speaker(?:\s*\d+)?)\*?\*?)\s*:/gi, '\n\n**$1:**\n');
         
-        // Clean double bolding
+        // Compact YAML frontmatter (remove excess blank lines inside YAML)
+        text = text.replace(/(---[\s\S]*?---)/, (match) => match.replace(/\n{2,}/g, '\n'));
+
+        // Format Speakers
+        text = text.replace(/(?:\n|^|\s)\s*(\*?\*?(?:Host|Guest(?:\s*\([^)]+\))?|Speaker(?:\s*\d+)?)\*?\*?)\s*:/gi, '\n\n**$1:**\n');
         text = text.replace(/\*\*\*\*/g, '**');
 
-        // Clean extra newlines and spaces
+        // FIX: Remove AI-generated double asterisks at the start of the dialogue line
+        // E.g., changes "**Host:**\n** We should..." to "**Host:**\nWe should..."
+        text = text.replace(/(\*\*(?:Host|Guest[^*]*|Speaker[^*]*)\*\*:\s*\n+)(?:\*\*\s*|\*\s*)+/gi, '$1');
+
         text = text.replace(/ {2,}/g, ' '); 
         text = text.replace(/\n{3,}/g, '\n\n'); 
-        
-        // Fix Blockquote spacing
         text = text.replace(/\n>\s*/g, '\n\n> ');
 
         return text.trim();
@@ -137,7 +143,6 @@
             return container;
         }
 
-        // Find the div with the most paragraph tags (highest text density)
         const possibleAreas = document.querySelectorAll('main, article, [role="main"], [role="document"], .geS5n');
         let bestArea = document.body;
         let maxScore = 0;
@@ -166,7 +171,6 @@
                 let rawText = extractText(targetElement);
                 let cleanMarkdown = postProcessMarkdown(rawText);
 
-                // Validation Guard
                 if (!cleanMarkdown || cleanMarkdown.length < 50) {
                     throw new Error("Content too short or UI detected.");
                 }
@@ -203,9 +207,9 @@
 
     // ── 5. UI INJECTION ────────────────────────────────────────────────────
     function createButton() {
-        if (document.getElementById('nblm-v14')) return;
+        if (document.getElementById('nblm-v15')) return;
         const btn = document.createElement('button');
-        btn.id = 'nblm-v14';
+        btn.id = 'nblm-v15';
         btn.innerText = 'Export to Obsidian';
         
         Object.assign(btn.style, {
@@ -222,7 +226,7 @@
         document.body.appendChild(btn);
     }
 
-    const observer = new MutationObserver(() => { if (!document.getElementById('nblm-v14')) createButton(); });
+    const observer = new MutationObserver(() => { if (!document.getElementById('nblm-v15')) createButton(); });
     observer.observe(document.body, { childList: true, subtree: true });
     createButton();
 
