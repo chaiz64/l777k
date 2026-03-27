@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NotebookLM → Obsidian Export (V15 - Ultra Clean)
+// @name         NotebookLM → Obsidian Export (V16 - Smart Naming)
 // @namespace    http://tampermonkey.net/
-// @version      15.0
-// @description  Removes Chat UI, Timestamp bleed, and fixes Double Asterisks in dialogue.
+// @version      16.0
+// @description  Clean export with auto-generated filenames based on YAML title.
 // @match        https://notebooklm.google.com/*
 // @grant        none
 // ==/UserScript==
@@ -12,7 +12,7 @@
 
     const CONFIG = {
         buttonColor: '#7c3aed',
-        fileNamePrefix: 'NotebookLM_Obsidian_'
+        defaultFileNamePrefix: 'NotebookLM_'
     };
 
     // ── 1. HARDENED FILTERS ────────────────────────────────────────────────
@@ -41,7 +41,6 @@
         const aria = (el.getAttribute('aria-label') || '').toLowerCase();
         const className = (typeof el.className === 'string' ? el.className.toLowerCase() : '');
 
-        // Added 'tab' and 'tablist' to block "Sources", "Chat", "Studio" buttons
         if (['button', 'toolbar', 'navigation', 'menu', 'menuitem', 'dialog', 'tooltip', 'progressbar', 'presentation', 'tab', 'tablist'].includes(role)) return true;
         if (aria.includes('emoji') || aria.includes('loading') || aria.includes('menu') || aria.includes('action')) return true;
         if (className.includes('button') || className.includes('tooltip') || className.includes('spinner') || className.includes('emoji') || className.includes('avatar')) return true;
@@ -55,14 +54,10 @@
             const text = node.textContent;
             const t = text.trim();
             
-            // Explicitly drop exact NotebookLM UI strings
             const uiStrings = ['Loading', 'No emoji found', 'Sources', 'Chat', 'Studio', 'Notebook guide', 'Saved to notes', 'Copy to clipboard'];
             if (uiStrings.includes(t)) return "";
             
-            // Drop "1 source", "2 sources", etc.
             if (/^\d+\s*sources?$/i.test(t)) return "";
-            
-            // Drop timestamps like "Today • 12:26 AM"
             if (/^(?:Today|Yesterday)\s*•/i.test(t)) return "";
             if (/^\d{1,2}:\d{2}\s*[AP]M$/.test(t)) return "";
 
@@ -114,15 +109,11 @@
             text = text.replace(/(speaker:[^\n]*)\n*(?=[^\n-])/i, '$1\n---\n\n');
         }
         
-        // Compact YAML frontmatter (remove excess blank lines inside YAML)
         text = text.replace(/(---[\s\S]*?---)/, (match) => match.replace(/\n{2,}/g, '\n'));
 
-        // Format Speakers
         text = text.replace(/(?:\n|^|\s)\s*(\*?\*?(?:Host|Guest(?:\s*\([^)]+\))?|Speaker(?:\s*\d+)?)\*?\*?)\s*:/gi, '\n\n**$1:**\n');
         text = text.replace(/\*\*\*\*/g, '**');
 
-        // FIX: Remove AI-generated double asterisks at the start of the dialogue line
-        // E.g., changes "**Host:**\n** We should..." to "**Host:**\nWe should..."
         text = text.replace(/(\*\*(?:Host|Guest[^*]*|Speaker[^*]*)\*\*:\s*\n+)(?:\*\*\s*|\*\s*)+/gi, '$1');
 
         text = text.replace(/ {2,}/g, ' '); 
@@ -160,6 +151,24 @@
         return bestArea;
     }
 
+    // ── Smart File Naming Function ──
+    function getFileNameFromContent(content) {
+        const dateStr = new Date().toISOString().split('T')[0];
+        
+        // Try to extract title from YAML frontmatter: title: "..."
+        const titleMatch = content.match(/^title:\s*"([^"]+)"/m) || content.match(/^title:\s*(.+)$/m);
+        
+        if (titleMatch && titleMatch[1]) {
+            let cleanTitle = titleMatch[1].trim();
+            // Replace spaces with underscores and remove invalid file characters
+            cleanTitle = cleanTitle.replace(/\s+/g, '_').replace(/[\\/:*?"<>|]/g, '');
+            return `${cleanTitle}.md`;
+        }
+        
+        // Fallback name
+        return `${CONFIG.defaultFileNamePrefix}${dateStr}.md`;
+    }
+
     function runExport(btn) {
         btn.innerText = 'Analyzing...';
         btn.style.backgroundColor = '#9333ea';
@@ -193,8 +202,8 @@
     }
 
     function downloadFile(content) {
-        const dateStr = new Date().toISOString().split('T')[0];
-        const fileName = `${CONFIG.fileNamePrefix}${dateStr}.md`;
+        const fileName = getFileNameFromContent(content); // Use smart naming function
+        
         const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -207,9 +216,9 @@
 
     // ── 5. UI INJECTION ────────────────────────────────────────────────────
     function createButton() {
-        if (document.getElementById('nblm-v15')) return;
+        if (document.getElementById('nblm-v16')) return;
         const btn = document.createElement('button');
-        btn.id = 'nblm-v15';
+        btn.id = 'nblm-v16';
         btn.innerText = 'Export to Obsidian';
         
         Object.assign(btn.style, {
@@ -226,7 +235,7 @@
         document.body.appendChild(btn);
     }
 
-    const observer = new MutationObserver(() => { if (!document.getElementById('nblm-v15')) createButton(); });
+    const observer = new MutationObserver(() => { if (!document.getElementById('nblm-v16')) createButton(); });
     observer.observe(document.body, { childList: true, subtree: true });
     createButton();
 
