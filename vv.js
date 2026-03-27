@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NotebookLM to Obsidian (V10 - Precision Formatter)
+// @name         NotebookLM to Obsidian (V11 - Ultimate Precision)
 // @namespace    http://tampermonkey.net/
-// @version      10.0
-// @description  Strict structural fidelity matching the user's YAML and Dialogue prompt rules.
+// @version      11.0
+// @description  Forces exact YAML and Dialogue structures according to the user's strict prompt.
 // @match        https://notebooklm.google.com/*
 // @require      https://unpkg.com/turndown/dist/turndown.js
 // @require      https://unpkg.com/turndown-plugin-gfm/dist/turndown-plugin-gfm.js
@@ -28,6 +28,7 @@
 
         clone.querySelectorAll('pre, code, div').forEach(el => {
             let text = el.textContent || '';
+            // Remove the user's prompt configuration block
             if (text.includes('task:') && text.includes('role:')) {
                 el.remove();
             }
@@ -46,11 +47,7 @@
         md = md.replace(/\\-/g, '-');
         md = md.replace(/\\>/g, '>');
 
-        // 2. Remove Turndown's automatic horizontal rules
-        md = md.replace(/^-{3,}$/gm, '');
-        md = md.replace(/^\*{3,}$/gm, '');
-
-        // 3. Clean NotebookLM UI junk
+        // 2. Clean UI junk
         let lines = md.split('\n');
         let cleanLines = lines.filter(line => {
             let t = line.trim();
@@ -63,67 +60,48 @@
             ];
             if (bad.includes(t)) return false;
             if (/^[0-9]+\s+source(s)?$/.test(t)) return false;
-            if (/^(Today|Yesterday|[A-Za-z]+)\s•\s[0-9]{1,2}:[0-9]{2}\s(AM|PM)/i.test(t)) return false;
+            if (/^(Today|Yesterday|[A-Za-z]+)\s\u2022\s[0-9]{1,2}:[0-9]{2}\s(AM|PM)/i.test(t)) return false;
             return true;
         });
         md = cleanLines.join('\n');
 
-        // 4. Reconstruct and force YAML Frontmatter spacing
-        md = md.replace(/channel:\s*/g, '\n---\nchannel: ');
-        md = md.replace(/title:\s*/g, '\ntitle: ');
-        md = md.replace(/categories:\s*/g, '\ncategories: ');
-        md = md.replace(/tags:\s*/g, '\ntags: ');
-        md = md.replace(/speaker:\s*"(.*?)"/g, '\nspeaker: "$1"\n---\n\n');
+        // 3. YAML FRONTMATTER RECONSTRUCTION
+        // Fix NotebookLM horizontal rules squashing the YAML
+        md = md.replace(/-{4,}/g, '---'); 
+        md = md.replace(/\*{3,}/g, '---');
 
-        // 5. Force Dialogue formatting (e.g., **Host:**)
-        md = md.replace(/(\*\*[A-Za-z0-9ก-๙\s]+:\*\*)/g, '\n\n$1\n\n');
+        // Force exact newlines before YAML keys
+        md = md.replace(/(\s*)(channel:\s*")/g, '\n$2');
+        md = md.replace(/(\s*)(title:\s*")/g, '\n$2');
+        md = md.replace(/(\s*)(categories:\s*\[)/g, '\n$2');
+        md = md.replace(/(\s*)(tags:\s*\[)/g, '\n$2');
+        md = md.replace(/(\s*)(speaker:\s*")/g, '\n$2');
 
-        // 6. Enforce strict paragraph spacing
-        let finalLines = md.split('\n').map(l => l.trim());
-        let formattedMd = "";
-        let inYaml = false;
-
-        for (let i = 0; i < finalLines.length; i++) {
-            let line = finalLines[i];
-            if (line === '') continue;
-
-            if (line === '---') {
-                if (!inYaml) {
-                    inYaml = true;
-                    formattedMd += (i === 0 ? '' : '\n\n') + '---\n';
-                } else {
-                    inYaml = false;
-                    formattedMd += '---\n\n';
-                }
-                continue;
-            }
-
-            if (inYaml) {
-                formattedMd += line + '\n';
-            } else {
-                if (line.match(/^\*\*[^*]+:\*\*$/)) {
-                    formattedMd += line + '\n\n'; // Dialogue name
-                } else if (line.startsWith('#') || line.startsWith('>')) {
-                    formattedMd += line + '\n\n'; // Headers and blockquotes
-                } else if (line.startsWith('- ') || line.match(/^\d+\.\s/)) {
-                    formattedMd += line + '\n';   // List items keep tight
-                } else {
-                    formattedMd += line + '\n\n'; // Normal paragraph
-                }
-            }
+        // Fix missing bottom boundary of YAML block if squashed with text
+        if (md.includes('channel: "')) {
+            // Guarantee top boundary
+            md = md.replace(/(channel:\s*")/g, '---\n$1');
+            // Guarantee bottom boundary and separate from content
+            md = md.replace(/(speaker:\s*".*?")([^\n])/g, '$1\n---\n\n$2');
         }
 
-        // Fix Highlighting bounds
-        formattedMd = formattedMd.replace(/==\s+/g, '==');
-        formattedMd = formattedMd.replace(/\s+==/g, '==');
-        formattedMd = formattedMd.replace(/==(.*?)==/g, function(match, p1) {
-             return '==' + p1.trim() + '==';
-        });
+        // 4. STRICT DIALOGUE FORMATTING
+        // Target **Name:** and force it to be on its own line, followed by the content on the next line.
+        // Uses [^\*]+ to match any character (including non-English) without using non-English Regex.
+        md = md.replace(/\*\*([^\*]+):\*\*\s*/g, '\n\n**$1:**\n');
 
-        // Global cleanup for excessive newlines
-        formattedMd = formattedMd.replace(/\n{3,}/g, '\n\n').trim();
+        // 5. HIGHLIGHT FIXES
+        md = md.replace(/==\s+/g, '==');
+        md = md.replace(/\s+==/g, '==');
 
-        return formattedMd;
+        // 6. STRICT PARAGRAPH SPACING
+        // Reduce 3+ newlines to exactly 2 newlines (standard Markdown paragraph break)
+        md = md.replace(/\n{3,}/g, '\n\n');
+
+        // Cleanup any leading --- that got duplicated
+        md = md.replace(/^---+[\s\n]*---/m, '---');
+
+        return md.trim();
     }
 
     function triggerDownload(content) {
@@ -146,10 +124,11 @@
     }
 
     function exportToMarkdown() {
-        let btn = document.getElementById('nblm-export-v10-btn');
+        let btn = document.getElementById('nblm-export-v11-btn');
         let originalText = btn.innerText;
-        btn.innerText = 'Formatting...';
-        btn.style.backgroundColor = '#4338ca';
+        btn.innerText = 'Extracting...';
+        btn.style.backgroundColor = '#d4d4d8';
+        btn.style.color = '#000000';
 
         try {
             if (typeof TurndownService === 'undefined') {
@@ -184,7 +163,6 @@
                 turndownService.use(turndownPluginGfm.gfm);
             }
 
-            // Prevent turndown from escaping equals signs used for highlighting
             turndownService.escape = function(string) {
                 return string;
             };
@@ -198,11 +176,12 @@
 
             triggerDownload(finalMarkdown);
 
-            btn.innerText = 'Done!';
-            btn.style.backgroundColor = '#10b981';
+            btn.innerText = 'Success!';
+            btn.style.backgroundColor = '#fbbf24'; 
             setTimeout(() => {
                 btn.innerText = originalText;
-                btn.style.backgroundColor = '#312e81';
+                btn.style.backgroundColor = '#09090b';
+                btn.style.color = '#fafafa';
             }, 2000);
 
         } catch (error) {
@@ -210,45 +189,49 @@
             alert("Export failed: " + error.message);
             btn.innerText = 'Error';
             btn.style.backgroundColor = '#ef4444';
+            btn.style.color = '#fafafa';
             setTimeout(() => {
                 btn.innerText = originalText;
-                btn.style.backgroundColor = '#312e81';
+                btn.style.backgroundColor = '#09090b';
+                btn.style.color = '#fafafa';
             }, 2000);
         }
     }
 
     function createUI() {
-        if (document.getElementById('nblm-export-v10-btn')) return;
+        if (document.getElementById('nblm-export-v11-btn')) return;
 
         let btn = document.createElement('button');
-        btn.id = 'nblm-export-v10-btn';
-        btn.innerText = 'Export Obsidian (Strict)';
+        btn.id = 'nblm-export-v11-btn';
+        btn.innerText = 'Export to Obsidian';
         
         btn.style.position = 'fixed';
         btn.style.bottom = '80px'; 
         btn.style.right = '24px';
         btn.style.zIndex = '999999';
         btn.style.padding = '14px 24px';
-        btn.style.backgroundColor = '#312e81'; 
-        btn.style.color = '#f8fafc';
-        btn.style.border = '1px solid #4338ca';
-        btn.style.borderRadius = '12px';
+        btn.style.backgroundColor = '#09090b'; 
+        btn.style.color = '#fafafa';
+        btn.style.border = '1px solid #27272a';
+        btn.style.borderRadius = '8px';
         btn.style.fontSize = '14px';
-        btn.style.fontWeight = '600';
+        btn.style.fontWeight = 'bold';
         btn.style.cursor = 'pointer';
-        btn.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.5)';
-        btn.style.transition = 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)';
+        btn.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.25)';
+        btn.style.transition = 'all 0.2s ease-in-out';
 
         btn.onmouseover = function() {
-            if (btn.innerText === 'Export Obsidian (Strict)') {
+            if (btn.innerText === 'Export to Obsidian') {
                 btn.style.transform = 'translateY(-2px)';
-                btn.style.backgroundColor = '#3730a3';
+                btn.style.boxShadow = '0 0 15px rgba(251, 191, 36, 0.4)'; 
+                btn.style.borderColor = '#fbbf24'; 
             }
         };
         btn.onmouseout = function() {
-            if (btn.innerText === 'Export Obsidian (Strict)') {
+            if (btn.innerText === 'Export to Obsidian') {
                 btn.style.transform = 'translateY(0)';
-                btn.style.backgroundColor = '#312e81';
+                btn.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.5)';
+                btn.style.borderColor = '#27272a';
             }
         };
 
@@ -257,7 +240,7 @@
     }
 
     let observer = new MutationObserver(function() {
-        if (!document.getElementById('nblm-export-v10-btn')) {
+        if (!document.getElementById('nblm-export-v11-btn')) {
             createUI();
         }
     });
