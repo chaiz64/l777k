@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NotebookLM to Markdown Export (V3 - Native Format)
+// @name         NotebookLM to Markdown Export (V4 - Mobile/Desktop Bulletproof)
 // @namespace    http://tampermonkey.net/
-// @version      3.0
-// @description  Exports NotebookLM chat with proper Markdown formatting (Bold, Lists, Headers).
+// @version      4.0
+// @description  Robust Markdown export ignoring hidden UI and mobile overlays.
 // @match        https://notebooklm.google.com/*
 // @grant        none
 // ==/UserScript==
@@ -10,8 +10,7 @@
 (function() {
     'use strict';
 
-    // Minimal HTML to Markdown converter
-    function parseNodeToMarkdown(node) {
+    function parseDOMToMarkdown(node) {
         if (node.nodeType === Node.TEXT_NODE) {
             return node.textContent;
         }
@@ -20,22 +19,43 @@
             return "";
         }
 
-        let tag = node.tagName.toLowerCase();
-        
-        if (tag === 'br') return '\n';
-        if (tag === 'hr') return '\n---\n\n';
-
-        let childrenMarkdown = "";
-        for (let child of node.childNodes) {
-            childrenMarkdown += parseNodeToMarkdown(child);
+        // 1. Skip strictly hidden elements (Critical for Mobile/NotebookLM UI)
+        let style = window.getComputedStyle(node);
+        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
+            return "";
         }
 
+        let tag = node.tagName.toLowerCase();
+        
+        // 2. Skip interactive and structural UI elements
+        if (['button', 'textarea', 'nav', 'header', 'svg', 'script', 'style', 'input'].includes(tag)) {
+            return "";
+        }
+
+        // 3. Skip known ARIA UI wrappers (Emoji pickers, etc.)
+        let ariaLabel = (node.getAttribute('aria-label') || '').toLowerCase();
+        if (ariaLabel.includes('emoji') || ariaLabel.includes('recently used') || ariaLabel.includes('search results')) {
+            return "";
+        }
+
+        // 4. Recursively parse children
+        let childrenMarkdown = "";
+        for (let child of node.childNodes) {
+            childrenMarkdown += parseDOMToMarkdown(child);
+        }
+
+        // 5. Convert HTML tags to Markdown syntax
         switch (tag) {
-            case 'p':
-            case 'div':
+            case 'br': return '\n';
+            case 'hr': return '\n---\n\n';
+            case 'p': return '\n\n' + childrenMarkdown + '\n\n';
+            case 'div': 
             case 'article':
             case 'section':
-                return '\n\n' + childrenMarkdown + '\n\n';
+                if (childrenMarkdown.trim().length > 0) {
+                    return '\n\n' + childrenMarkdown + '\n\n';
+                }
+                return childrenMarkdown;
             case 'h1': return '\n\n# ' + childrenMarkdown + '\n\n';
             case 'h2': return '\n\n## ' + childrenMarkdown + '\n\n';
             case 'h3': return '\n\n### ' + childrenMarkdown + '\n\n';
@@ -43,78 +63,71 @@
             case 'h5': return '\n\n##### ' + childrenMarkdown + '\n\n';
             case 'h6': return '\n\n###### ' + childrenMarkdown + '\n\n';
             case 'strong':
-            case 'b':
-                return '**' + childrenMarkdown + '**';
+            case 'b': return '**' + childrenMarkdown.trim() + '** ';
             case 'em':
-            case 'i':
-                return '*' + childrenMarkdown + '*';
+            case 'i': return '*' + childrenMarkdown.trim() + '* ';
             case 'code':
-                if (node.parentNode && node.parentNode.tagName.toLowerCase() === 'pre') {
-                    return childrenMarkdown; 
-                }
+                if (node.parentNode && node.parentNode.tagName.toLowerCase() === 'pre') return childrenMarkdown;
                 return '`' + childrenMarkdown + '`';
-            case 'pre':
-                return '\n\n```\n' + childrenMarkdown + '\n```\n\n';
-            case 'blockquote':
-                return '\n\n> ' + childrenMarkdown.replace(/\n/g, '\n> ') + '\n\n';
+            case 'pre': return '\n\n```\n' + childrenMarkdown + '\n```\n\n';
+            case 'blockquote': return '\n\n> ' + childrenMarkdown.replace(/\n/g, '\n> ') + '\n\n';
             case 'ul':
-            case 'ol':
-                return '\n' + childrenMarkdown + '\n';
+            case 'ol': return '\n' + childrenMarkdown + '\n';
             case 'li':
                 let prefix = node.parentNode && node.parentNode.tagName.toLowerCase() === 'ol' ? '1. ' : '- ';
                 return '\n' + prefix + childrenMarkdown.trim();
-            case 'a':
-                return '[' + childrenMarkdown + '](' + node.getAttribute('href') + ')';
-            case 'span':
-                return childrenMarkdown;
-            default:
-                return childrenMarkdown;
+            case 'a': return '[' + childrenMarkdown + '](' + node.getAttribute('href') + ')';
+            default: return childrenMarkdown;
         }
     }
 
     function cleanMarkdown(md) {
-        md = md.replace(/\n{3,}/g, '\n\n'); // Remove extra blank lines
-        md = md.replace(/\*\* \*\*/g, '');  // Clean empty bolds
-        md = md.replace(/\* \*/g, '');      // Clean empty italics
+        let lines = md.split('\n');
+        
+        // Exact matches for leftover UI text that aren't caught by element tags
+        let junkTexts = [
+            'Sources', 'Chat', 'Studio', 
+            'Start typing...', 'Save to note', 
+            'No emoji found', 'Recently used', 
+            'Search results', 'Loading',
+            '1 source', 'sources', 'PLUS'
+        ];
+        
+        let cleanLines = lines.filter(line => {
+            let t = line.trim();
+            if (t === '') return true; 
+            if (junkTexts.includes(t)) return false;
+            // Regex match for "X sources" floating text
+            if (/^[0-9]+\s+source(s)?$/.test(t)) return false;
+            // Regex match for standalone eye icon or similar floating single characters
+            if (/^[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]$/.test(t)) return false;
+            
+            return true;
+        });
+
+        md = cleanLines.join('\n');
+        
+        // Fix up spacing
+        md = md.replace(/\n{3,}/g, '\n\n'); 
+        md = md.replace(/\*\* \*\*/g, '');  
+        md = md.replace(/\* \*/g, '');      
         return md.trim();
     }
 
     function exportToMarkdown() {
-        // Find main chat container
-        let chatContainer = document.querySelector('div[role="log"]') || 
-                            document.querySelector('main') || 
-                            document.body;
+        // Fallback safely to document.body so it works on any mobile DOM structure
+        let targetArea = document.querySelector('div[role="log"]') || 
+                         document.querySelector('main') || 
+                         document.body;
 
-        // Clone so we don't mess up the actual UI
-        let clone = chatContainer.cloneNode(true);
-
-        // Strip out buttons, icons, and menus before parsing
-        let junkSelectors = [
-            'button', 
-            'textarea', 
-            'nav', 
-            'header', 
-            'svg', 
-            '[role="toolbar"]',
-            '[aria-label*="emoji"]',
-            '[aria-label*="Recently used"]',
-            '.clip-board-button'
-        ];
-        
-        junkSelectors.forEach(sel => {
-            clone.querySelectorAll(sel).forEach(el => el.remove());
-        });
-
-        // Convert the clean HTML into Markdown syntax
-        let rawMarkdown = parseNodeToMarkdown(clone);
+        let rawMarkdown = parseDOMToMarkdown(targetArea);
         let finalMarkdown = cleanMarkdown(rawMarkdown);
 
         if (!finalMarkdown) {
-            alert("No content found. Please make sure the chat is fully loaded.");
+            alert("No content found. Please make sure the chat is visible on your screen.");
             return;
         }
 
-        // Generate file
         let blob = new Blob([finalMarkdown], { type: 'text/markdown' });
         let url = window.URL.createObjectURL(blob);
         let a = document.createElement('a');
@@ -136,32 +149,23 @@
 
         let btn = document.createElement('button');
         btn.id = 'nblm-export-btn';
-        btn.innerText = 'Export MD (Formatted)';
+        btn.innerText = 'Export MD (V4)';
         
         btn.style.position = 'fixed';
-        btn.style.bottom = '24px';
+        btn.style.bottom = '80px'; // Moved slightly higher for mobile view navigation bars
         btn.style.right = '24px';
         btn.style.zIndex = '999999';
         btn.style.padding = '12px 20px';
-        btn.style.backgroundColor = '#10b981'; 
+        btn.style.backgroundColor = '#8b5cf6'; // Purple button
         btn.style.color = '#ffffff';
         btn.style.border = 'none';
         btn.style.borderRadius = '8px';
         btn.style.fontSize = '14px';
         btn.style.fontWeight = 'bold';
         btn.style.cursor = 'pointer';
-        btn.style.boxShadow = '0 4px 6px rgba(0,0,0,0.1)';
-        btn.style.transition = 'background-color 0.2s';
-
-        btn.onmouseover = function() {
-            btn.style.backgroundColor = '#059669';
-        };
-        btn.onmouseout = function() {
-            btn.style.backgroundColor = '#10b981';
-        };
-
+        btn.style.boxShadow = '0 4px 6px rgba(0,0,0,0.3)';
+        
         btn.onclick = exportToMarkdown;
-
         document.body.appendChild(btn);
     }
 
