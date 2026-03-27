@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NotebookLM to Obsidian (V11 - Ultimate Precision)
+// @name         NotebookLM to Obsidian (V12 - Perfect Layout)
 // @namespace    http://tampermonkey.net/
-// @version      11.0
-// @description  Forces exact YAML and Dialogue structures according to the user's strict prompt.
+// @version      12.0
+// @description  Eliminates line squashing using strict Turndown block rules and line break injections.
 // @match        https://notebooklm.google.com/*
 // @require      https://unpkg.com/turndown/dist/turndown.js
 // @require      https://unpkg.com/turndown-plugin-gfm/dist/turndown-plugin-gfm.js
@@ -15,6 +15,7 @@
     function sanitizeDOM(container) {
         let clone = container.cloneNode(true);
 
+        // 1. Remove UI junk components
         let junkSelectors = [
             'button', 'textarea', 'input', 'nav', 'header', 'svg', 'img',
             '[role="button"]', '[role="toolbar"]', '[role="navigation"]', '[role="menu"]',
@@ -26,9 +27,9 @@
             clone.querySelectorAll(selector).forEach(el => el.remove());
         });
 
+        // 2. Remove the user's prompt configuration block
         clone.querySelectorAll('pre, code, div').forEach(el => {
             let text = el.textContent || '';
-            // Remove the user's prompt configuration block
             if (text.includes('task:') && text.includes('role:')) {
                 el.remove();
             }
@@ -38,7 +39,7 @@
     }
 
     function postProcessMarkdown(md) {
-        // 1. Unescape Turndown characters
+        // 1. Unescape Markdown characters heavily guarded by Turndown
         md = md.replace(/\\=/g, '=');
         md = md.replace(/\\\*/g, '*');
         md = md.replace(/\\_/g, '_');
@@ -47,7 +48,7 @@
         md = md.replace(/\\-/g, '-');
         md = md.replace(/\\>/g, '>');
 
-        // 2. Clean UI junk
+        // 2. Clean leftover string fragments from Google's UI
         let lines = md.split('\n');
         let cleanLines = lines.filter(line => {
             let t = line.trim();
@@ -66,40 +67,40 @@
         md = cleanLines.join('\n');
 
         // 3. YAML FRONTMATTER RECONSTRUCTION
-        // Fix NotebookLM horizontal rules squashing the YAML
-        md = md.replace(/-{4,}/g, '---'); 
-        md = md.replace(/\*{3,}/g, '---');
+        // Strip out existing horizontal rules to prevent YAML breakage
+        md = md.replace(/^-{4,}$/gm, '---'); 
+        md = md.replace(/^\*{3,}$/gm, '---');
 
-        // Force exact newlines before YAML keys
+        // Ensure YAML keys start on fresh lines
         md = md.replace(/(\s*)(channel:\s*")/g, '\n$2');
         md = md.replace(/(\s*)(title:\s*")/g, '\n$2');
         md = md.replace(/(\s*)(categories:\s*\[)/g, '\n$2');
         md = md.replace(/(\s*)(tags:\s*\[)/g, '\n$2');
         md = md.replace(/(\s*)(speaker:\s*")/g, '\n$2');
 
-        // Fix missing bottom boundary of YAML block if squashed with text
-        if (md.includes('channel: "')) {
-            // Guarantee top boundary
+        // Apply strict top and bottom boundaries for YAML
+        if (md.includes('channel: "') && md.includes('speaker: "')) {
+            md = md.replace(/^---\s*\n/gm, ''); // Remove floating dashes
             md = md.replace(/(channel:\s*")/g, '---\n$1');
-            // Guarantee bottom boundary and separate from content
-            md = md.replace(/(speaker:\s*".*?")([^\n])/g, '$1\n---\n\n$2');
+            md = md.replace(/(speaker:\s*".*?")\s*/g, '$1\n---\n\n');
         }
 
-        // 4. STRICT DIALOGUE FORMATTING
-        // Target **Name:** and force it to be on its own line, followed by the content on the next line.
-        // Uses [^\*]+ to match any character (including non-English) without using non-English Regex.
-        md = md.replace(/\*\*([^\*]+):\*\*\s*/g, '\n\n**$1:**\n');
+        // 4. STRICT DIALOGUE FORMATTING (Hard Line Breaks)
+        // Detects **Name:** and forces two spaces + newline to ensure 
+        // standard Markdown engines render it on a separate line.
+        md = md.replace(/\*\*([^\*\n]{1,40}):\*\*[ \t\xA0]*/g, '\n\n**$1:** \n');
+        md = md.replace(/\*\*([^\*\n]{1,40})\*\*:[ \t\xA0]*/g, '\n\n**$1:** \n');
 
         // 5. HIGHLIGHT FIXES
         md = md.replace(/==\s+/g, '==');
         md = md.replace(/\s+==/g, '==');
 
-        // 6. STRICT PARAGRAPH SPACING
-        // Reduce 3+ newlines to exactly 2 newlines (standard Markdown paragraph break)
+        // 6. GLOBAL SPACING CLEANUP
+        // Standardize all excess newlines into perfect paragraph breaks
         md = md.replace(/\n{3,}/g, '\n\n');
-
-        // Cleanup any leading --- that got duplicated
-        md = md.replace(/^---+[\s\n]*---/m, '---');
+        
+        // Remove duplicated YAML tops
+        md = md.replace(/^---\n---\n/g, '---\n');
 
         return md.trim();
     }
@@ -113,7 +114,7 @@
         let timeStr = new Date().toTimeString().slice(0,8).replace(/:/g, '');
         
         a.href = url;
-        a.download = 'Interview_Translate_' + dateStr + '_' + timeStr + '.md';
+        a.download = 'NotebookLM_Format_' + dateStr + '_' + timeStr + '.md';
         a.style.display = 'none';
         
         document.body.appendChild(a);
@@ -124,11 +125,11 @@
     }
 
     function exportToMarkdown() {
-        let btn = document.getElementById('nblm-export-v11-btn');
+        let btn = document.getElementById('nblm-export-v12-btn');
         let originalText = btn.innerText;
         btn.innerText = 'Extracting...';
-        btn.style.backgroundColor = '#d4d4d8';
-        btn.style.color = '#000000';
+        btn.style.backgroundColor = '#9ca3af';
+        btn.style.color = '#111827';
 
         try {
             if (typeof TurndownService === 'undefined') {
@@ -158,13 +159,29 @@
                 strongDelimiter: '**',
                 emDelimiter: '*'
             });
+
+            // CUSTOM RULE: Force strict paragraph breaks for block elements
+            turndownService.addRule('strict_block_spacing', {
+                filter: ['div', 'p', 'article', 'section'],
+                replacement: function (content) {
+                    return '\n\n' + content + '\n\n';
+                }
+            });
+
+            // CUSTOM RULE: Convert line breaks into true structural breaks
+            turndownService.addRule('br_spacing', {
+                filter: ['br'],
+                replacement: function () {
+                    return '\n\n';
+                }
+            });
             
             if (typeof turndownPluginGfm !== 'undefined') {
                 turndownService.use(turndownPluginGfm.gfm);
             }
 
             turndownService.escape = function(string) {
-                return string;
+                return string; // Prevent Turndown from destroying custom syntax
             };
 
             let rawMarkdown = turndownService.turndown(cleanDOM.innerHTML);
@@ -176,12 +193,13 @@
 
             triggerDownload(finalMarkdown);
 
-            btn.innerText = 'Success!';
-            btn.style.backgroundColor = '#fbbf24'; 
+            btn.innerText = 'Perfected!';
+            btn.style.backgroundColor = '#10b981'; 
+            btn.style.color = '#ffffff';
             setTimeout(() => {
                 btn.innerText = originalText;
-                btn.style.backgroundColor = '#09090b';
-                btn.style.color = '#fafafa';
+                btn.style.backgroundColor = '#991b1b';
+                btn.style.color = '#ffffff';
             }, 2000);
 
         } catch (error) {
@@ -189,30 +207,30 @@
             alert("Export failed: " + error.message);
             btn.innerText = 'Error';
             btn.style.backgroundColor = '#ef4444';
-            btn.style.color = '#fafafa';
+            btn.style.color = '#ffffff';
             setTimeout(() => {
                 btn.innerText = originalText;
-                btn.style.backgroundColor = '#09090b';
-                btn.style.color = '#fafafa';
+                btn.style.backgroundColor = '#991b1b';
+                btn.style.color = '#ffffff';
             }, 2000);
         }
     }
 
     function createUI() {
-        if (document.getElementById('nblm-export-v11-btn')) return;
+        if (document.getElementById('nblm-export-v12-btn')) return;
 
         let btn = document.createElement('button');
-        btn.id = 'nblm-export-v11-btn';
-        btn.innerText = 'Export to Obsidian';
+        btn.id = 'nblm-export-v12-btn';
+        btn.innerText = 'Export MD (V12 Perfect Layout)';
         
         btn.style.position = 'fixed';
         btn.style.bottom = '80px'; 
         btn.style.right = '24px';
         btn.style.zIndex = '999999';
         btn.style.padding = '14px 24px';
-        btn.style.backgroundColor = '#09090b'; 
-        btn.style.color = '#fafafa';
-        btn.style.border = '1px solid #27272a';
+        btn.style.backgroundColor = '#991b1b'; // Crimson Red
+        btn.style.color = '#ffffff';
+        btn.style.border = '1px solid #7f1d1d';
         btn.style.borderRadius = '8px';
         btn.style.fontSize = '14px';
         btn.style.fontWeight = 'bold';
@@ -221,17 +239,17 @@
         btn.style.transition = 'all 0.2s ease-in-out';
 
         btn.onmouseover = function() {
-            if (btn.innerText === 'Export to Obsidian') {
+            if (btn.innerText === 'Export MD (V12 Perfect Layout)') {
                 btn.style.transform = 'translateY(-2px)';
-                btn.style.boxShadow = '0 0 15px rgba(251, 191, 36, 0.4)'; 
-                btn.style.borderColor = '#fbbf24'; 
+                btn.style.boxShadow = '0 0 15px rgba(220, 38, 38, 0.4)'; 
+                btn.style.backgroundColor = '#b91c1c';
             }
         };
         btn.onmouseout = function() {
-            if (btn.innerText === 'Export to Obsidian') {
+            if (btn.innerText === 'Export MD (V12 Perfect Layout)') {
                 btn.style.transform = 'translateY(0)';
                 btn.style.boxShadow = '0 10px 15px -3px rgba(0, 0, 0, 0.5)';
-                btn.style.borderColor = '#27272a';
+                btn.style.backgroundColor = '#991b1b';
             }
         };
 
@@ -240,7 +258,7 @@
     }
 
     let observer = new MutationObserver(function() {
-        if (!document.getElementById('nblm-export-v11-btn')) {
+        if (!document.getElementById('nblm-export-v12-btn')) {
             createUI();
         }
     });
