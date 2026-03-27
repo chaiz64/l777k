@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NotebookLM → Obsidian Export (V12)
+// @name         NotebookLM → Obsidian Export (V14 - Ultimate)
 // @namespace    http://tampermonkey.net/
-// @version      12.0
-// @description  Clean Obsidian markdown export with Smart Formatting for YAML, Headers, and Speakers.
+// @version      14.0
+// @description  Full Review implementation. Fixes UI Chrome bleed, perfectly constructs YAML, and formats speakers.
 // @match        https://notebooklm.google.com/*
 // @grant        none
 // ==/UserScript==
@@ -10,217 +10,220 @@
 (function () {
     'use strict';
 
-    // ── Configuration ────────────────────────────────────────────────────────
     const CONFIG = {
         buttonColor: '#7c3aed',
         fileNamePrefix: 'NotebookLM_Obsidian_'
     };
 
-    // ── Core DOM to Markdown Converter ───────────────────────────────────────
-    function parseNodeToMarkdown(node) {
-        if (node.nodeType === Node.TEXT_NODE) {
-            return node.textContent;
-        }
-        if (node.nodeType !== Node.ELEMENT_NODE) {
-            return "";
+    // ── 1. HARDENED FILTERS ────────────────────────────────────────────────
+    const SKIP_TAGS = new Set([
+        'SCRIPT', 'STYLE', 'NOSCRIPT', 'HEAD', 'META', 'LINK',
+        'BUTTON', 'INPUT', 'TEXTAREA', 'SELECT', 'OPTION',
+        'NAV', 'HEADER', 'FOOTER', 'DIALOG', 'SVG', 'IMG', 'IFRAME'
+    ]);
+
+    const BLOCK_TAGS = new Set([
+        'P', 'DIV', 'SECTION', 'ARTICLE', 'ASIDE',
+        'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+        'BLOCKQUOTE', 'PRE', 'UL', 'OL', 'LI',
+        'TABLE', 'TR', 'TD', 'TH', 'HR', 'BR'
+    ]);
+
+    function isUIChrome(el) {
+        if (!el || !el.getAttribute) return false;
+        
+        // 1. Check computed style for hidden elements (avoids tooltips)
+        if (window.getComputedStyle) {
+            const style = window.getComputedStyle(el);
+            if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return true;
         }
 
-        const tag = node.tagName.toLowerCase();
+        const role = (el.getAttribute('role') || '').toLowerCase();
+        const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+        const className = (typeof el.className === 'string' ? el.className.toLowerCase() : '');
 
-        // Skip non-content tags
-        if (['script', 'style', 'noscript', 'nav', 'button', 'svg', 'img', 'header', 'footer'].includes(tag)) {
-            return "";
-        }
+        // 2. Strict blacklisting
+        if (['button', 'toolbar', 'navigation', 'menu', 'menuitem', 'dialog', 'tooltip', 'progressbar', 'presentation'].includes(role)) return true;
+        if (aria.includes('emoji') || aria.includes('loading') || aria.includes('menu') || aria.includes('action')) return true;
+        if (className.includes('button') || className.includes('tooltip') || className.includes('spinner') || className.includes('emoji') || className.includes('avatar')) return true;
 
-        // Process children recursively
-        let innerText = Array.from(node.childNodes).map(parseNodeToMarkdown).join("");
-
-        // Format based on tag
-        switch (tag) {
-            case 'p':
-            case 'div':
-            case 'section':
-                return `\n\n${innerText}\n\n`;
-            case 'br':
-                return `\n`;
-            case 'h1':
-                return `\n\n# ${innerText.trim()}\n\n`;
-            case 'h2':
-                return `\n\n## ${innerText.trim()}\n\n`;
-            case 'h3':
-                return `\n\n### ${innerText.trim()}\n\n`;
-            case 'strong':
-            case 'b':
-                return `**${innerText.trim()}**`;
-            case 'em':
-            case 'i':
-                return `*${innerText.trim()}*`;
-            case 'li':
-                return `\n- ${innerText.trim()}`;
-            case 'blockquote':
-                return `\n> ${innerText.trim()}\n`;
-            default:
-                return innerText;
-        }
+        return false;
     }
 
-    // ── Smart Text Formatting (The Magic for "Untitled 8" Format) ────────────
-    function postProcessMarkdown(text) {
-        // 1. Fix massive dashes into proper YAML boundary
-        text = text.replace(/-{10,}/g, '---');
+    // ── 2. PRECISE DOM EXTRACTION ──────────────────────────────────────────
+    function extractText(node) {
+        if (node.nodeType === Node.TEXT_NODE) {
+            // Drop useless empty text nodes or floating UI texts
+            const text = node.textContent;
+            if (text.trim() === 'Loading' || text.trim() === 'No emoji found') return "";
+            return text;
+        }
+        
+        if (node.nodeType !== Node.ELEMENT_NODE) return "";
 
-        // 2. Break YAML keys onto new lines
+        const tag = node.tagName.toUpperCase();
+        if (SKIP_TAGS.has(tag)) return "";
+        if (isUIChrome(node)) return "";
+
+        let text = "";
+        const isBlock = BLOCK_TAGS.has(tag);
+
+        if (isBlock) text += "\n\n";
+
+        // Map HTML tags to Markdown
+        if (tag === 'H1') text += "# ";
+        else if (tag === 'H2') text += "## ";
+        else if (tag === 'H3') text += "### ";
+        else if (tag === 'BLOCKQUOTE') text += "> ";
+        else if (tag === 'LI') text += "- ";
+        else if (tag === 'STRONG' || tag === 'B') text += "**";
+        else if (tag === 'EM' || tag === 'I') text += "*";
+
+        for (const child of node.childNodes) {
+            text += extractText(child);
+        }
+
+        // Close inline formatting
+        if (tag === 'STRONG' || tag === 'B') text += "**";
+        else if (tag === 'EM' || tag === 'I') text += "*";
+
+        if (isBlock) text += "\n\n";
+
+        return text;
+    }
+
+    // ── 3. SMART POST-PROCESSING (Targeting 'Untitled 8' Exactness) ────────
+    function postProcessMarkdown(text) {
+        // Fix weird dashboard dashes
+        text = text.replace(/-{4,}/g, '---');
+
+        // Extract and format YAML Frontmatter keys
         const yamlKeys = ['channel:', 'title:', 'categories:', 'tags:', 'speaker:'];
         yamlKeys.forEach(key => {
-            const regex = new RegExp(`(?<!\\n)(${key})`, 'g');
+            const regex = new RegExp(`(?<!\\n)\\s*(${key})`, 'gi');
             text = text.replace(regex, '\n$1');
         });
 
-        // 3. Close the YAML Frontmatter cleanly
-        // Finds the last YAML key (speaker:) and ensures a closing '---' follows it before main content
+        // Ensure YAML closes properly
         if (text.includes('---')) {
-            text = text.replace(/(speaker:.*?)\n?(?=[^\s-])/i, '$1\n---\n\n');
+            text = text.replace(/(speaker:[^\n]*)\n*(?=[^\n-])/i, '$1\n---\n\n');
         }
 
-        // 4. Format Speakers (e.g., "Host:", "Guest (Isaac):") to be Bold and on their own line
-        text = text.replace(/(\*?\*?(?:Host|Guest(?:\s*\([^)]+\))?)\*?\*?)\s*:/gi, '\n**$1:**\n');
-
-        // 5. Ensure Headings have space around them
-        text = text.replace(/([^\n])\n(##+ )/g, '$1\n\n$2');
-
-        // 6. Clean up excessive whitespace and newlines (Max 2 newlines)
-        text = text.replace(/ +/g, ' '); // collapse multiple spaces
-        text = text.replace(/\n{3,}/g, '\n\n'); // collapse multiple newlines
+        // Format Speakers (e.g. "Host:", "Guest (Isaac):")
+        // Makes them bold and moves dialogue to next line
+        text = text.replace(/(?:\n|^|\s)\s*(\*?\*?(?:Host|Guest(?:\s*\([^)]+\))?|Speaker(?:\s*\d+)?)\*?\*?)\s*:/gi, '\n\n**$1:**\n');
         
-        // 7. Fix blockquote spacing if user manually typed ">"
+        // Clean double bolding
+        text = text.replace(/\*\*\*\*/g, '**');
+
+        // Clean extra newlines and spaces
+        text = text.replace(/ {2,}/g, ' '); 
+        text = text.replace(/\n{3,}/g, '\n\n'); 
+        
+        // Fix Blockquote spacing
         text = text.replace(/\n>\s*/g, '\n\n> ');
 
         return text.trim();
     }
 
-    // ── Main Execution Logic ─────────────────────────────────────────────────
+    // ── 4. EXECUTION & AUTO-TARGETING ──────────────────────────────────────
+    function findMainContentArea() {
+        const selection = window.getSelection();
+        if (selection && selection.toString().trim().length > 50) {
+            const container = document.createElement('div');
+            for (let i = 0; i < selection.rangeCount; i++) {
+                container.appendChild(selection.getRangeAt(i).cloneContents());
+            }
+            return container;
+        }
+
+        // Find the div with the most paragraph tags (highest text density)
+        const possibleAreas = document.querySelectorAll('main, article, [role="main"], [role="document"], .geS5n');
+        let bestArea = document.body;
+        let maxScore = 0;
+
+        possibleAreas.forEach(area => {
+            const textLength = area.innerText.length;
+            const pCount = area.querySelectorAll('p').length;
+            const score = textLength + (pCount * 100);
+            if (score > maxScore && !isUIChrome(area)) {
+                maxScore = score;
+                bestArea = area;
+            }
+        });
+
+        return bestArea;
+    }
+
     function runExport(btn) {
-        btn.innerText = 'Extracting...';
+        btn.innerText = 'Analyzing...';
         btn.style.backgroundColor = '#9333ea';
 
         setTimeout(() => {
             try {
-                // Try to find the main content area (Note panel or Chat area)
-                // Fallback: Use selected text if user highlights something
-                let targetElement;
-                const selection = window.getSelection();
+                const targetElement = findMainContentArea();
                 
-                if (selection && selection.toString().trim().length > 0) {
-                    // Extract from user selection
-                    const container = document.createElement('div');
-                    for (let i = 0; i < selection.rangeCount; i++) {
-                        container.appendChild(selection.getRangeAt(i).cloneContents());
-                    }
-                    targetElement = container;
-                } else {
-                    // Auto-detect main note content (NotebookLM specific selectors)
-                    // You might need to adjust this selector if NotebookLM updates their UI
-                    const possibleContainers = document.querySelectorAll('[role="main"], article, .note-content-container, main');
-                    targetElement = possibleContainers.length > 0 ? possibleContainers[possibleContainers.length - 1] : document.body;
+                let rawText = extractText(targetElement);
+                let cleanMarkdown = postProcessMarkdown(rawText);
+
+                // Validation Guard
+                if (!cleanMarkdown || cleanMarkdown.length < 50) {
+                    throw new Error("Content too short or UI detected.");
                 }
 
-                // 1. Extract raw DOM to rough Markdown
-                let rawMarkdown = parseNodeToMarkdown(targetElement);
-
-                // 2. Post-process to fix YAML, Headers, and Speakers
-                let cleanMarkdown = postProcessMarkdown(rawMarkdown);
-
-                if (!cleanMarkdown || cleanMarkdown.length < 10) {
-                    throw new Error("No meaningful content found to export.");
-                }
-
-                // 3. Trigger Download
                 downloadFile(cleanMarkdown);
                 
-                btn.innerText = '✅ Success!';
-                btn.style.backgroundColor = '#10b981'; // Green
+                btn.innerText = '✅ Exported!';
+                btn.style.backgroundColor = '#10b981';
             } catch (err) {
-                console.error(err);
-                btn.innerText = '❌ Failed';
-                btn.style.backgroundColor = '#ef4444'; // Red
+                console.error("Export Error: ", err);
+                btn.innerText = '❌ Failed - Try Highlighting Text';
+                btn.style.backgroundColor = '#ef4444';
             }
 
-            // Reset button
             setTimeout(() => {
                 btn.innerText = 'Export to Obsidian';
                 btn.style.backgroundColor = CONFIG.buttonColor;
-            }, 3000);
-        }, 100);
+            }, 4000);
+        }, 150);
     }
 
     function downloadFile(content) {
         const dateStr = new Date().toISOString().split('T')[0];
         const fileName = `${CONFIG.fileNamePrefix}${dateStr}.md`;
-        
         const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
         const url = URL.createObjectURL(blob);
-        
         const a = document.createElement('a');
         a.href = url;
         a.download = fileName;
         document.body.appendChild(a);
         a.click();
-        
-        // Cleanup
-        setTimeout(() => {
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        }, 100);
+        setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url); }, 100);
     }
 
-    // ── UI Generation ────────────────────────────────────────────────────────
+    // ── 5. UI INJECTION ────────────────────────────────────────────────────
     function createButton() {
-        if (document.getElementById('nblm-v12')) return;
-
+        if (document.getElementById('nblm-v14')) return;
         const btn = document.createElement('button');
-        btn.id = 'nblm-v12';
+        btn.id = 'nblm-v14';
         btn.innerText = 'Export to Obsidian';
         
         Object.assign(btn.style, {
-            position:                'fixed',
-            bottom:                  '30px',
-            right:                   '30px',
-            zIndex:                  '999999',
-            padding:                 '14px 20px',
-            backgroundColor:         CONFIG.buttonColor,
-            color:                   '#fff',
-            border:                  'none',
-            borderRadius:            '12px',
-            fontSize:                '15px',
-            fontWeight:              'bold',
-            cursor:                  'pointer',
-            boxShadow:               '0 4px 14px rgba(0,0,0,0.4)',
-            transition:              'all 0.2s ease',
-            minWidth:                '160px',
-            fontFamily:              'sans-serif'
+            position: 'fixed', bottom: '30px', right: '30px', zIndex: '999999',
+            padding: '14px 20px', backgroundColor: CONFIG.buttonColor, color: '#fff',
+            border: 'none', borderRadius: '12px', fontSize: '15px', fontWeight: 'bold',
+            cursor: 'pointer', boxShadow: '0 4px 14px rgba(0,0,0,0.4)',
+            transition: 'all 0.2s ease', minWidth: '160px', fontFamily: 'sans-serif'
         });
 
-        // Hover effects
         btn.onmouseover = () => btn.style.transform = 'translateY(-2px)';
         btn.onmouseout = () => btn.style.transform = 'translateY(0)';
-        
-        // Click action
         btn.onclick = () => runExport(btn);
-        
         document.body.appendChild(btn);
     }
 
-    // Initialize UI
-    // Using MutationObserver to ensure button stays on page even if React re-renders
-    const observer = new MutationObserver(() => {
-        if (!document.getElementById('nblm-v12')) {
-            createButton();
-        }
-    });
-    
+    const observer = new MutationObserver(() => { if (!document.getElementById('nblm-v14')) createButton(); });
     observer.observe(document.body, { childList: true, subtree: true });
-    
-    // Initial render
     createButton();
 
 })();
