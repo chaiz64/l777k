@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         NotebookLM to Markdown Export (V4 - Mobile/Desktop Bulletproof)
+// @name         NotebookLM to Markdown Export (V5)
 // @namespace    http://tampermonkey.net/
-// @version      4.0
-// @description  Robust Markdown export ignoring hidden UI and mobile overlays.
+// @version      5.0
+// @description  Extracts formatted chat text specifically optimized for mobile views.
 // @match        https://notebooklm.google.com/*
 // @grant        none
 // ==/UserScript==
@@ -10,58 +10,29 @@
 (function() {
     'use strict';
 
-    function parseDOMToMarkdown(node) {
+    function parseNodeToMarkdown(node) {
         if (node.nodeType === Node.TEXT_NODE) {
             return node.textContent;
         }
-
         if (node.nodeType !== Node.ELEMENT_NODE) {
             return "";
         }
 
-        // 1. Skip strictly hidden elements (Critical for Mobile/NotebookLM UI)
-        let style = window.getComputedStyle(node);
-        if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') {
-            return "";
-        }
-
         let tag = node.tagName.toLowerCase();
-        
-        // 2. Skip interactive and structural UI elements
-        if (['button', 'textarea', 'nav', 'header', 'svg', 'script', 'style', 'input'].includes(tag)) {
-            return "";
-        }
-
-        // 3. Skip known ARIA UI wrappers (Emoji pickers, etc.)
-        let ariaLabel = (node.getAttribute('aria-label') || '').toLowerCase();
-        if (ariaLabel.includes('emoji') || ariaLabel.includes('recently used') || ariaLabel.includes('search results')) {
-            return "";
-        }
-
-        // 4. Recursively parse children
         let childrenMarkdown = "";
+        
         for (let child of node.childNodes) {
-            childrenMarkdown += parseDOMToMarkdown(child);
+            childrenMarkdown += parseNodeToMarkdown(child);
         }
 
-        // 5. Convert HTML tags to Markdown syntax
         switch (tag) {
             case 'br': return '\n';
             case 'hr': return '\n---\n\n';
             case 'p': return '\n\n' + childrenMarkdown + '\n\n';
-            case 'div': 
-            case 'article':
-            case 'section':
-                if (childrenMarkdown.trim().length > 0) {
-                    return '\n\n' + childrenMarkdown + '\n\n';
-                }
-                return childrenMarkdown;
             case 'h1': return '\n\n# ' + childrenMarkdown + '\n\n';
             case 'h2': return '\n\n## ' + childrenMarkdown + '\n\n';
             case 'h3': return '\n\n### ' + childrenMarkdown + '\n\n';
             case 'h4': return '\n\n#### ' + childrenMarkdown + '\n\n';
-            case 'h5': return '\n\n##### ' + childrenMarkdown + '\n\n';
-            case 'h6': return '\n\n###### ' + childrenMarkdown + '\n\n';
             case 'strong':
             case 'b': return '**' + childrenMarkdown.trim() + '** ';
             case 'em':
@@ -77,57 +48,102 @@
                 let prefix = node.parentNode && node.parentNode.tagName.toLowerCase() === 'ol' ? '1. ' : '- ';
                 return '\n' + prefix + childrenMarkdown.trim();
             case 'a': return '[' + childrenMarkdown + '](' + node.getAttribute('href') + ')';
-            default: return childrenMarkdown;
+            case 'div':
+            case 'span':
+            case 'section':
+            case 'article':
+            case 'main':
+                return childrenMarkdown;
+            default:
+                return childrenMarkdown;
         }
     }
 
-    function cleanMarkdown(md) {
-        let lines = md.split('\n');
-        
-        // Exact matches for leftover UI text that aren't caught by element tags
-        let junkTexts = [
-            'Sources', 'Chat', 'Studio', 
-            'Start typing...', 'Save to note', 
-            'No emoji found', 'Recently used', 
-            'Search results', 'Loading',
-            '1 source', 'sources', 'PLUS'
+    function exportToMarkdown() {
+        // 1. Locate the chat container using the scoring system (From V2)
+        let bestContainer = null;
+        let maxScore = -1;
+
+        let candidateContainers = document.querySelectorAll('div, main, section');
+        candidateContainers.forEach(container => {
+            let paragraphCount = container.querySelectorAll('p').length;
+            let textLength = container.innerText ? container.innerText.trim().length : 0;
+            
+            if (container.tagName === 'BODY' || container.tagName === 'HTML') return;
+            
+            let score = paragraphCount * 100 + textLength;
+            
+            if (textLength > document.body.innerText.length * 0.9) {
+                score = score / 2;
+            }
+
+            if (score > maxScore && paragraphCount > 0) {
+                maxScore = score;
+                bestContainer = container;
+            }
+        });
+
+        if (!bestContainer) {
+            bestContainer = document.querySelector('main') || document.body;
+        }
+
+        // 2. Clone the container to manipulate it safely without breaking UI
+        let clone = bestContainer.cloneNode(true);
+
+        // 3. Purge unwanted UI elements
+        let junkSelectors = [
+            'button', 
+            'textarea', 
+            'input', 
+            'nav', 
+            'header', 
+            'svg', 
+            'img',
+            '[role="button"]', 
+            '[role="toolbar"]', 
+            '[role="navigation"]',
+            '[role="menu"]',
+            '[aria-label*="emoji"]', 
+            '[aria-label*="Recently used"]',
+            '.cdk-overlay-container',
+            '[class*="tooltip"]',
+            '[class*="icon"]'
         ];
-        
+
+        junkSelectors.forEach(selector => {
+            clone.querySelectorAll(selector).forEach(el => el.remove());
+        });
+
+        // 4. Convert to Markdown (From V3)
+        let rawMarkdown = parseNodeToMarkdown(clone);
+
+        // 5. Clean up the resulting text
+        let lines = rawMarkdown.split('\n');
         let cleanLines = lines.filter(line => {
             let t = line.trim();
-            if (t === '') return true; 
-            if (junkTexts.includes(t)) return false;
-            // Regex match for "X sources" floating text
+            if (t === '') return true;
+            
+            let junkList = [
+                'Search results', 'No emoji found', 'Recently used', 
+                'Loading', 'Start typing...', 'Save to note',
+                'Chat', 'Studio', 'Sources', 'PLUS'
+            ];
+            
+            if (junkList.includes(t)) return false;
             if (/^[0-9]+\s+source(s)?$/.test(t)) return false;
-            // Regex match for standalone eye icon or similar floating single characters
-            if (/^[\u2700-\u27BF]|[\uE000-\uF8FF]|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|[\u2011-\u26FF]|\uD83E[\uDD10-\uDDFF]$/.test(t)) return false;
             
             return true;
         });
 
-        md = cleanLines.join('\n');
-        
-        // Fix up spacing
-        md = md.replace(/\n{3,}/g, '\n\n'); 
-        md = md.replace(/\*\* \*\*/g, '');  
-        md = md.replace(/\* \*/g, '');      
-        return md.trim();
-    }
+        let finalMarkdown = cleanLines.join('\n');
+        finalMarkdown = finalMarkdown.replace(/\n{3,}/g, '\n\n').trim();
 
-    function exportToMarkdown() {
-        // Fallback safely to document.body so it works on any mobile DOM structure
-        let targetArea = document.querySelector('div[role="log"]') || 
-                         document.querySelector('main') || 
-                         document.body;
-
-        let rawMarkdown = parseDOMToMarkdown(targetArea);
-        let finalMarkdown = cleanMarkdown(rawMarkdown);
-
-        if (!finalMarkdown) {
-            alert("No content found. Please make sure the chat is visible on your screen.");
+        if (!finalMarkdown || finalMarkdown === "") {
+            alert("Export failed: Could not extract text. Please scroll through the chat to load content and try again.");
             return;
         }
 
+        // 6. Trigger Download
         let blob = new Blob([finalMarkdown], { type: 'text/markdown' });
         let url = window.URL.createObjectURL(blob);
         let a = document.createElement('a');
@@ -145,18 +161,18 @@
     }
 
     function createExportButton() {
-        if (document.getElementById('nblm-export-btn')) return;
+        if (document.getElementById('nblm-export-btn-v5')) return;
 
         let btn = document.createElement('button');
-        btn.id = 'nblm-export-btn';
-        btn.innerText = 'Export MD (V4)';
+        btn.id = 'nblm-export-btn-v5';
+        btn.innerText = 'Export MD (V5)';
         
         btn.style.position = 'fixed';
-        btn.style.bottom = '80px'; // Moved slightly higher for mobile view navigation bars
+        btn.style.bottom = '80px'; 
         btn.style.right = '24px';
         btn.style.zIndex = '999999';
         btn.style.padding = '12px 20px';
-        btn.style.backgroundColor = '#8b5cf6'; // Purple button
+        btn.style.backgroundColor = '#f59e0b'; // Amber Color
         btn.style.color = '#ffffff';
         btn.style.border = 'none';
         btn.style.borderRadius = '8px';
@@ -170,7 +186,7 @@
     }
 
     let observer = new MutationObserver(function() {
-        if (!document.getElementById('nblm-export-btn')) {
+        if (!document.getElementById('nblm-export-btn-v5')) {
             createExportButton();
         }
     });
