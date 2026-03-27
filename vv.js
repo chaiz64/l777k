@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         NotebookLM to Markdown Export
+// @name         NotebookLM to Markdown Export (V2)
 // @namespace    http://tampermonkey.net/
-// @version      1.0
+// @version      2.0
 // @description  Injects a floating button to export NotebookLM chat content to a Markdown file.
 // @match        https://notebooklm.google.com/*
 // @grant        none
@@ -11,33 +11,115 @@
     'use strict';
 
     function exportToMarkdown() {
-        let textContent = "";
+        // 1. Find the best container for the chat using a scoring system
+        let targetArea = null;
+        let maxScore = 0;
         
-        // Find all message containers. NotebookLM uses various nested divs. 
-        // We target generic structural elements inside the main chat view.
-        let contentArea = document.querySelector('main') || document.body;
-        
-        // Basic extraction (can be refined based on exact DOM structure)
-        textContent = contentArea.innerText;
+        document.querySelectorAll('div, main, section').forEach(el => {
+            let textLen = el.innerText ? el.innerText.trim().length : 0;
+            let pCount = el.querySelectorAll('p').length;
+            
+            // Look for areas with paragraphs and substantial text
+            if (textLen > 50 && pCount > 0) {
+                let score = pCount * 100 + textLen;
+                
+                // Penalize root-level wrappers to find the tightest chat container
+                if (el.tagName === 'MAIN' || el.tagName === 'BODY') {
+                    score = score * 0.1;
+                }
+                if (textLen > document.body.innerText.length * 0.85) {
+                    score = score * 0.5; 
+                }
+                
+                // Bonus for ARIA roles often used in chat logs
+                let role = el.getAttribute('role');
+                if (role === 'log' || role === 'presentation' || role === 'region') {
+                    score = score * 1.5;
+                }
+                
+                if (score > maxScore) {
+                    maxScore = score;
+                    targetArea = el;
+                }
+            }
+        });
 
-        if (!textContent || textContent.trim() === "") {
-            alert("No text content found to export.");
+        // Fallback if the scoring system fails
+        if (!targetArea) {
+            targetArea = document.querySelector('main') || document.body;
+        }
+
+        // 2. Use Selection API to extract clean, formatted text
+        let selection = window.getSelection();
+        let range = document.createRange();
+        
+        // Hide UI elements before copying to prevent junk text
+        let btn = document.getElementById('nblm-export-btn');
+        if (btn) btn.style.display = 'none';
+        
+        let junkSelectors = [
+            '[aria-label*="emoji"]', 
+            '[aria-label*="Recently used"]',
+            'textarea', 
+            'button' 
+        ];
+        
+        let hiddenElements = [];
+        junkSelectors.forEach(sel => {
+            document.querySelectorAll(sel).forEach(el => {
+                hiddenElements.push({ element: el, display: el.style.display });
+                el.style.display = 'none';
+            });
+        });
+
+        // Backup current user selection
+        let originalRange = selection.rangeCount > 0 ? selection.getRangeAt(0) : null;
+        
+        // Execute copy selection
+        selection.removeAllRanges();
+        range.selectNodeContents(targetArea);
+        selection.addRange(range);
+        
+        let rawText = selection.toString();
+        
+        // Restore user selection and UI visibility
+        selection.removeAllRanges();
+        if (originalRange) selection.addRange(originalRange);
+        if (btn) btn.style.display = 'block';
+        hiddenElements.forEach(item => {
+            item.element.style.display = item.display;
+        });
+
+        if (!rawText || rawText.trim() === "") {
+            alert("No text content found to export. Please ensure the chat is fully loaded.");
             return;
         }
 
-        // Basic formatting cleanup for Markdown
-        let markdownContent = textContent
-            .replace(/\n{3,}/g, '\n\n') // Reduce multiple newlines
+        // 3. Filter out leftover known junk lines
+        let lines = rawText.split('\n');
+        let cleanLines = lines.filter(line => {
+            let t = line.trim();
+            return t !== 'Search results' && 
+                   t !== 'No emoji found' && 
+                   t !== 'Recently used' && 
+                   t !== 'Loading';
+        });
+
+        // Reassemble and clean up multiple blank lines
+        let markdownContent = cleanLines.join('\n')
+            .replace(/\n{3,}/g, '\n\n')
             .trim();
 
-        // Create Blob and trigger download
+        // 4. Download file
         let blob = new Blob([markdownContent], { type: 'text/markdown' });
         let url = window.URL.createObjectURL(blob);
         let a = document.createElement('a');
         
+        let dateStr = new Date().toISOString().slice(0,10);
+        
         a.style.display = 'none';
         a.href = url;
-        a.download = 'NotebookLM_Export.md';
+        a.download = 'NotebookLM_Chat_' + dateStr + '.md';
         
         document.body.appendChild(a);
         a.click();
@@ -47,14 +129,12 @@
     }
 
     function createExportButton() {
-        // Prevent duplicate buttons
         if (document.getElementById('nblm-export-btn')) return;
 
         let btn = document.createElement('button');
         btn.id = 'nblm-export-btn';
         btn.innerText = 'Export MD';
         
-        // Button styling (Floating bottom right)
         btn.style.position = 'fixed';
         btn.style.bottom = '24px';
         btn.style.right = '24px';
@@ -82,16 +162,13 @@
         document.body.appendChild(btn);
     }
 
-    // Use MutationObserver to ensure the button persists across React/Angular route changes
-    let observer = new MutationObserver(function(mutations) {
+    let observer = new MutationObserver(function() {
         if (!document.getElementById('nblm-export-btn')) {
             createExportButton();
         }
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
-
-    // Initial creation attempt
     createExportButton();
 
 })();
