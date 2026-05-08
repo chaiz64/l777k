@@ -1,4 +1,4 @@
-# TITAN TORRENT v2.2 — BitTorrent Client for Google Colab
+# @title 🧲 TITAN TORRENT v2 — BitTorrent Client for Google Colab
 # ==============================================================================
 # Run this cell ONCE. Re-run is safe (singleton guard prevents double-init).
 # Features: Magnet Links · .torrent Files · Real-time Stats · Google Drive Export
@@ -32,7 +32,7 @@ from datetime import datetime
 from typing import Optional, Dict, List, Callable
 from dataclasses import dataclass
 from enum import Enum, auto
-from IPython.display import display, HTML, clear_output
+from IPython.display import display, HTML, clear_output, Javascript
 
 # ── 3. SINGLETON GUARD ────────────────────────────────────────────────────────
 # Prevents duplicate engines / threads when the cell is re-run accidentally.
@@ -514,6 +514,14 @@ class TitanDashboard:
             ),
         )
 
+        # ── register JS auto-refresh (ทำงานใน main thread 100%) ───────────────
+        try:
+            from google.colab import output
+            output.register_callback('titan.refresh', self._js_refresh)
+            self._js_enabled = True
+        except Exception:
+            self._js_enabled = False
+
     # ── wire callbacks ────────────────────────────────────────────────────────
     def _wire(self):
         self._btn_add.on_click(self._on_add)
@@ -534,6 +542,15 @@ class TitanDashboard:
             self._q(f"🔄 Refreshed {len(stats)} torrent(s)")
         except Exception as e:
             self._q(f"❌ Refresh error: {e}")
+
+    def _js_refresh(self):
+        """ถูกเรียกจาก JavaScript ทุก 1 วินาที"""
+        try:
+            if self._auto_refresh.value:
+                stats = self.engine.get_all_stats()
+                self._update_ui(stats)
+        except Exception:
+            pass
 
     def _q(self, msg: str):
         """Queue a log line to be printed in the background loop."""
@@ -789,16 +806,8 @@ class TitanDashboard:
                 except Exception:
                     pass
 
-                # ── update UI if auto-refresh on ──────────────────────────
-                # บังคับอัปเดตทุก 1 วินาที แม้ auto_refresh จะปิด (เพื่อให้ session timer เดิน)
-                now_t = time.time()
-                if self._auto_refresh.value or (now_t - last_stats_time > 1.0):
-                    try:
-                        stats = self.engine.get_all_stats()
-                        self._update_ui(stats)
-                        last_stats_time = now_t
-                    except Exception as ui_err:
-                        self._q(f"⚠️ UI update error: {ui_err}")
+                # ── UI update ถูกจัดการโดย JavaScript แล้ว ไม่ต้องทำใน thread
+                pass
 
                 # ── console heartbeat ─────────────────────────────────────
                 if self._keep_alive.value and self._iter % hb_interval == 0:
@@ -823,7 +832,7 @@ class TitanDashboard:
         # ใช้ daemon=False เพื่อให้ thread อยู่รอดหลัง cell จบ (Colab จะไม่ฆ่า)
         self._thread  = threading.Thread(target=self._loop, daemon=False)
         self._thread.start()
-        self._q("🧲 Titan Torrent v2.2 พร้อมใช้งาน!")
+        self._q("🧲 Titan Torrent v2.3 พร้อมใช้งาน!")
         self._q("💡 วาง magnet link แล้วกด ADD · หรืออัปโหลดไฟล์ .torrent")
         self._q("🔄 กด REFRESH เพื่ออัปเดตสถานะ · เปิด Auto Stats เพื่ออัปเดตอัตโนมัติ")
 
@@ -838,6 +847,16 @@ class TitanDashboard:
 
     def show(self):
         display(self.root)
+        if getattr(self, '_js_enabled', False):
+            js = """
+            // Titan auto-refresh ทุก 1 วินาที
+            if (window.titanInterval) clearInterval(window.titanInterval);
+            window.titanInterval = setInterval(() => {
+                google.colab.kernel.invokeFunction('titan.refresh', [], {});
+            }, 1000);
+            """
+            display(Javascript(js))
+            self._q("⚡ Auto-refresh ผ่าน JavaScript เปิดใช้งาน")
 
 # ── 8. LAUNCH (singleton-guarded) ─────────────────────────────────────────────
 _app = TitanDashboard()
