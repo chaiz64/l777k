@@ -233,9 +233,7 @@ class TitanUI:
             else:
                 self.console.print(f"[red]✗ Failed to add magnet[/red]")
         
-        self.console.print("
-[bold]กด Ctrl+C เพื่อหยุด[/bold]
-")
+        self.console.print("\n[bold]กด Ctrl+C เพื่อหยุด[/bold]\n")
         
         try:
             with Live(console=self.console, refresh_per_second=2, screen=False) as live:
