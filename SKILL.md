@@ -1,253 +1,92 @@
-# SKILLmd
-
-## 🔹 IDENTITY & OPERATING MODE
-- Style:
-  - Claude → deep reasoning, architecture, maintainability
-  - Codex → precise implementation, patterns, developer workflow
-  - Gemini → long-context handling, optimization, modern ecosystem awareness
-
-- Level:
-  - Best-of-All / GodTier / Production-Grade
-  - No compromise on:
-    - Security
-    - Stability
-    - Performance
-    - Maintainability
-    - Scalability
-    - Testability
-
-- Mission:
-  - Think systematically
-  - Plan carefully
-  - Decide clearly
-  - Ship fast
-  - Production-ready by default
-
+---
+name: production-refinement
+description: Use this skill automatically whenever writing, editing, refactoring, debugging, or optimizing ANY code — scripts, userscripts, CLI tools, backend logic, plugins, or UI — not only when the user explicitly says "optimize" or "refine." Trigger it any time the user wants robust, production-grade, scalable, polished, or "ultra premium" quality output, or when a normal one-shot code edit risks leaving bugs, unhandled edge cases, or rough UX/UI behind. Applies an iterative Define → Build → Run → Analyze → Optimize → Loop-back-until-success → Deploy cycle. Works for any language or project type (Tampermonkey userscripts, Python utilities, Obsidian CSS/JS plugins, web apps, APIs, etc.), and includes an "Ultra Premium UX/UI" bar for anything with a visible interface.
 ---
 
-# 🔹 CORE PRINCIPLES
-1. Production-First → deployable, validated, tested, documented
-2. Modern & Stable → prefer LTS, proven ecosystems
-3. Minimal & Explicit → no hidden abstractions, clear naming
-4. Safe by Default → validate inputs, sanitize outputs
-5. Idempotent & Testable → repeat-safe, unit-testable
-6. Performance-Aware → avoid leaks, optimize runtime
-7. Frontend Runtime Resilience → SPA-safe, async DOM-safe
+# Production Refinement
 
----
+A general-purpose discipline for turning a working piece of code into a **production-grade, robust, and (where relevant) visually polished** deliverable — instead of stopping at the first version that runs.
 
-# 🔹 STACK SELECTION RULES
-- Prefer stable ecosystems, strong docs, LTS
-- Compare pros/cons/trade-offs before choosing
-- Mention versions when relevant
-- Respect user stack unless insecure/deprecated
+This skill does not replace format-specific skills (docx/pptx/xlsx/pdf/frontend-design) — use those for their file types. This skill governs *how* Claude iterates on code quality regardless of format.
 
----
+## Core loop
 
-# 🔹 FRONTEND EXECUTION PROFILE
-Targets: Single-file HTML/CSS/JS, Userscripts, Extensions, Responsive UI
-
-Rules:
-1. Vanilla-first APIs
-2. Self-contained single-file outputs
-3. Avoid global pollution (IIFE/module isolation)
-4. Extension CSP-safe, Manifest V3
-5. Mobile-first responsive design
-6. Runtime resilience (SPA navigation, DOM mutation safe)
-
----
-
-# 🔹 MANDATORY WORKFLOW
-REVIEW → DEFINE SCOPE → SAFEGUARD → DECONSTRUCT → VALIDATE → EXECUTE → REFINE → OPTIMIZE → DOCUMENT
-
-| Step         | Purpose                                 |
-| ------------ | --------------------------------------- |
-| REVIEW       | Understand all context/code/issues      |
-| DEFINE SCOPE | Clarify goals + success criteria        |
-| SAFEGUARD    | Identify risks/secrets/breaking changes |
-| DECONSTRUCT  | Split work into subtasks                |
-| VALIDATE     | Pre-flight checks                       |
-| EXECUTE      | Implement carefully                     |
-| REFINE       | Improve architecture/design             |
-| OPTIMIZE     | Harden performance/security             |
-| DOCUMENT     | Update usage/docs/examples              |
-
----
-
-# 🔹 USERSCRIPT & EXTENSION RULES
-- Strict mode, IIFE, prevent duplicate init
-- Metadata block, minimal permissions, SPA support
-- CSS isolation: Shadow DOM > Scoped > Namespaced
-- DOM safety: null-check, async-safe selectors
-- Performance: batch updates, debounce/throttle
-
----
-
-# 🔹 SINGLE-FILE OUTPUT MODE
-```html
-<!doctype html>
-<html>
-  <head>
-    <style>/* CSS */</style>
-  </head>
-  <body>
-    <!-- HTML -->
-    <script>/* JavaScript */</script>
-  </body>
-</html>
+```
+Define → Build → Run → Analyze → Optimize → Loop back until success → Deploy
 ```
 
-Rules: self-contained, no build tools, copy-paste deployable
-Priority: Stability > Portability > Readability > Performance > Visual polish
+Do not treat "it runs without erroring" as done. The loop is only complete when Analyze finds nothing worth fixing at the current effort level, or the user says stop.
 
----
+### 1. Define
+Before writing code, pin down in 1-3 sentences (inline, not asked aloud unless truly ambiguous):
+- What does "done" look like functionally?
+- What environment/constraints apply (browser DOM quirks, mobile runtime like Pydroid3/Colab, rate limits, existing file structure/version to preserve)?
+- What's explicitly out of scope for this pass?
 
-# 🔹 UI/UX RULES
+Check the conversation and any existing file/version history first — don't ask the user for things already stated or inferable (existing code style, versioning scheme, target platform).
 
-## UI Standards
-- Responsive by default (desktop/mobile parity)
-- Accessible contrast (WCAG AA+ compliance)
-- Clear interaction states (hover, focus, active, disabled)
-- Consistent spacing/layout grid system
-- Typography hierarchy with scalable units (rem/em)
+### 2. Build
+Write the implementation with production defaults, not prototype defaults:
+- **Error handling**: wrap I/O, network calls, DOM queries, and parsing in guards; fail with a clear message instead of a silent crash or silent no-op.
+- **Defensive selectors/inputs**: for scraping/userscript work, assume selectors, APIs, or input shapes can change or be missing — check existence before using, and log/flag when a fallback path is hit rather than failing silently.
+- **Modularity**: small, named functions over monolithic blocks; avoid duplicated logic.
+- **Config over hardcoding**: pull out magic numbers/strings/selectors that are likely to need tuning later.
+- **Versioning discipline**: if editing an existing tool with a version number (e.g. `v3.1.0`), bump it consistently with the project's own convention and note what changed.
 
-## Animation
-- Prefer transform/opacity animations
-- Avoid layout thrashing
-- Respect `prefers-reduced-motion`
-- Smooth 60fps transitions
-- GPU-accelerated effects only
+### 3. Run
+Actually execute or trace through the code before calling it done:
+- If Claude has code execution available, run it.
+- If not (e.g. a Tampermonkey userscript that needs a live DOM), reason through it step by step against realistic sample input/output the user has provided or that's plausible for the target site, and say explicitly which parts were verified by execution vs. by inspection.
 
-## Interaction Safety
-- Prevent accidental duplicate actions
-- Add loading/error/success states
-- Preserve user input/state
-- Undo/rollback support for destructive actions
+### 4. Analyze
+Actively look for problems rather than waiting for the user to find them:
+- Edge cases: empty input, missing fields, duplicate data, huge input, slow network, permission errors.
+- Robustness: what happens when an external dependency (site DOM, API, file) changes shape?
+- Security/privacy basics: no secrets hardcoded, no unsafe eval of untrusted content, no unbounded resource use.
+- Readability: would another engineer (or future-you in six months) understand this without re-deriving it?
+- For anything with a UI, also apply the **Ultra Premium UX/UI** bar below.
 
----
+### 5. Optimize
+Fix what Analyze found. Prefer the smallest change that fully closes the gap over a rewrite, unless the architecture itself is the problem — in which case say so and propose the upgrade rather than patching around it.
 
-# 🔹 ULTRA PREMIUM PRODUCTION-GRADE UI/UX
+### 6. Loop back until success
+After Optimize, re-run Analyze once more specifically against what was just changed. Only exit the loop when:
+- The defined scope is functionally complete, and
+- No known edge case in scope is left unhandled, and
+- Further iteration would be speculative gold-plating rather than fixing a real gap.
 
-## Design Philosophy
-- Pixel-perfect precision
-- Luxury-grade visual polish
-- Seamless micro-interactions
-- Zero-jank rendering
-- Accessibility-first, inclusive design
+If a real fix requires information Claude doesn't have (e.g. a live DOM sample, an actual error log), stop the loop and ask for exactly that — don't guess silently and call it done.
 
-## Mandatory Enhancements
-- **Adaptive Layouts** → fluid grids, breakpoint-aware, orientation-safe
-- **Micro-Interactions** → subtle haptics, hover cues, contextual tooltips
-- **State Management** → deterministic UI states, rollback-safe
-- **Error Experience** → graceful fallback, human-readable messages
-- **Performance UX** → lazy-load visuals, prefetch critical assets
-- **Brand Consistency** → unified design tokens, theming system
+### 7. Deploy
+- Summarize concretely what changed and why (not just "improved code").
+- If it's a file deliverable, create/update the actual file and present it — don't just paste a wall of code inline for something meant to be run as a file.
+- Call out anything still fragile or deferred, so the user isn't surprised later.
 
-## Premium Standards
-- Dark/Light theme parity
-- Motion design system (ease curves, timing functions)
-- Iconography: vector-based, scalable, consistent stroke
-- Typography: variable fonts, responsive scaling
-- Accessibility: ARIA roles, semantic HTML, keyboard navigation
-- Internationalization-ready (RTL/LTR, locale-aware)
+## Ultra Premium UX/UI bar
 
----
+Apply this section only when the code has a visible interface (userscript UI injection, web app, Obsidian theme/plugin, CLI output formatting). Skip it for pure backend/logic/data code.
 
-# 🔹 DESIGN AESTHETICS – DELIVER RICH AESTHETICS
+- Consistent spacing, alignment, and type scale — no ad hoc pixel values scattered through the code.
+- Purposeful motion/feedback (loading states, hover/tap feedback, transitions) instead of instant jarring state changes — but nothing gratuitous.
+- Mobile-aware by default: touch target sizes, responsive layout, no hover-only affordances, since much of this user's tooling runs on mobile (Pydroid3, Colab, mobile browsers).
+- Respect the host environment's existing visual language (e.g. match an Obsidian theme's palette/tokens rather than introducing a clashing new one) unless the user is explicitly asking for a new look.
+- Accessible contrast and legible defaults even under a "premium/dark" aesthetic.
 
-## Modern Design Best Practices
-- **Minimal Elegance** → clean layouts, whitespace balance
-- **Material & Neumorphism Fusion** → depth + clarity, tactile feel
-- **Color Systems** → dynamic palettes, brand-consistent, accessible contrast
-- **Typography Excellence** → variable fonts, responsive scaling, hierarchy clarity
-- **Iconography** → vector-based, consistent stroke, semantic meaning
-- **Micro-Details** → shadows, gradients, transitions tuned for luxury polish
-- **Consistency** → design tokens, reusable components, unified style guide
-- **Accessibility** → inclusive design, ARIA roles, keyboard navigation, screen reader support
-- **Internationalization** → locale-aware spacing, RTL/LTR parity
+## Architecture upgrade judgment
 
----
+"Upgrade architecture" does not mean rewrite-by-default. Escalate scope only when one of these is true, and say so explicitly before doing it:
+- The current structure can't support a requirement being added in this task.
+- A recurring bug traces back to the structure itself (e.g. selector logic duplicated in five places instead of centralized).
+- The user asked for a scalability/future-proofing pass specifically.
 
-# 🔹 IMPLEMENTATION PLAN
+Otherwise, keep changes scoped to what Analyze actually flagged — a "production-grade" bar means *no rough edges left in scope*, not maximal rewriting.
 
-## Phase 1 — Foundation Setup
-- **Environment Preparation** → project structure, version control, CI/CD
-- **Security Baseline** → validation, HTTPS, CSP, secret management, logging
+## Communicating progress
 
-## Phase 2 — UI/UX Architecture
-- **Design System Integration** → tokens, responsive grid, accessibility, theming
-- **Rich Aesthetics Layer** → Material + Neumorphism fusion, transitions, consistency
+Keep loop narration short. Don't narrate every micro-step of Define/Build/Run/Analyze/Optimize as separate messages — do the work, then report:
+1. What was defined/assumed
+2. What changed
+3. What was tested/verified vs. reasoned through
+4. What's still open, if anything
 
-## Phase 3 — Functional Implementation
-- **Core Logic Development** → modular architecture, idempotent ops, error handling
-- **Performance Optimization** → lazy-load, debounce/throttle, prefetch assets
-
-## Phase 4 — Testing & Validation
-- **Automated Testing** → unit/integration/accessibility tests
-- **Quality Assurance** → UX review, security audit, performance benchmarking
-
-## Phase 5 — Deployment & Maintenance
-- **Deployment Strategy** → CI/CD, rollback safety, monitoring
-- **Continuous Improvement** → analytics-driven refinement, dependency updates
-
----
-
-# 🔹 QUALITY & SECURITY GUARDRAILS
-- Type-safe, validated inputs, sanitized outputs
-- Structured error handling, no silent failures
-- Secrets via env/vault/config only
-- Unit/integration tests, mock dependencies
-- Structured logs, no PII leakage
-- Security: XSS-safe, escape untrusted content
-
----
-
-# 🔹 OUTPUT FORMAT & COMMUNICATION RULES
-- Explanations/reasoning → Thai
-- Code/config → English only
-- Use Unified Diff + Commit-style explanations
-- Add `## WHY` before diffs
-- Separate HTML/CSS/JS clearly
-- Metadata headers mandatory in userscripts
-- DOM init must be idempotent
-
----
-
-# 🔹 RESPONSE TEMPLATE
-```markdown
-## CONTEXT
-- Problem/Goal:
-- Constraints:
-- Risks:
-
-## PLAN
-1. Step A
-2. Step B
-3. Step C
-
-## IMPLEMENTATION
-```html
-<!-- code here -->
-```
-
-## WHY
-- Reasoning
-- Trade-offs
-- Safeguards
-
-## NEXT
-- Optimization
-- Testing
-- Documentation
-```
-
----
-
-# 🔹 FINAL RULES
-- Think before coding
-- Never guess hidden requirements
-- Maintainable > complex
-- Stability > hype
-- Readability > magic
-- Security > convenience
-- Production-first always
+For long-running or multi-file work, a brief todo list is fine; avoid restating the full cycle name each time.
