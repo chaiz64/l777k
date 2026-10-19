@@ -1187,7 +1187,6 @@ def start_record(url_data: tuple, count_variable: int = -1) -> None:
                                     "-hide_banner",
                                     "-user_agent", user_agent,
                                     "-protocol_whitelist", "rtmp,crypto,file,http,https,tcp,tls,udp,rtp,httpproxy",
-                                    "-thread_queue_size", "1024",
                                     "-analyzeduration", analyzeduration,
                                     "-probesize", probesize,
                                     "-fflags", "+discardcorrupt",
